@@ -58,9 +58,7 @@ jobs:
             --follow-imports `
             --show-scons `
             --verbose `
-            --assume-yes-for-downloads            
-            --include-data-dir=icons=icons `
-            --include-data-dir=ui=ui `
+            --assume-yes-for-downloads `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -104,8 +102,7 @@ jobs:
             --include-module=ui.codik `
             --include-module=ui.adv `
             --include-module=ui.filya `
-            --include-module=ui.decorators `
-            --assume-yes-for-downloads
+            --include-module=ui.decorators            --assume-yes-for-downloads
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4

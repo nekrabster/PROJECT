@@ -29,6 +29,10 @@ jobs:
         with:
           version: 17
 
+      - name: 🔍 Debug Python modules
+        run: |
+          python -c "import os; import ui; print('✅ UI modules:', os.listdir('ui'))"
+
       - name: 🛠 Build with Nuitka (Clang + оптимизация)
         shell: pwsh
         run: |
@@ -48,6 +52,13 @@ jobs:
             --windows-product-version="1.0.0" `
             --output-filename=Soft-K.exe `
             --include-package=ui `
+            --include-plugin-directory=ui `
+            --include-data-dir=icons=icons `
+            --include-data-dir=ui=ui `
+            --follow-imports `
+            --show-scons `
+            --verbose `
+            --assume-yes-for-downloads            
             --include-data-dir=icons=icons `
             --include-data-dir=ui=ui `
             --include-module=ui.rudich `

@@ -1,0 +1,15 @@
+requests
+aiogram
+aiofiles
+packaging
+PySocks
+Pillow
+faker
+aiohttp_socks
+qasync
+telethon
+PyQt6
+phonenumbers
+aiosmtplib
+pandas
+psutil>=5.9.0

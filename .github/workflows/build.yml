@@ -31,7 +31,7 @@ jobs:
 
       - name: 🔍 Debug Python modules
         run: |
-          python -c "import os; import ui; print('✅ UI modules:', os.listdir('ui'))"
+          python -c "import os; import ui; print('UI modules:', os.listdir('ui'))"
 
       - name: 🛠 Build with Nuitka (Clang + оптимизация)
         shell: pwsh

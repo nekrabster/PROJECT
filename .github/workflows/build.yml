@@ -34,8 +34,10 @@ jobs:
 
       - name: 🛠 Build with Nuitka
         shell: pwsh
+        env:
+          PYTHONIOENCODING: "utf-8"
+          PYTHONLEGACYWINDOWSSTDIO: "utf-8"
         run: |
-          $env:PYTHONIOENCODING = "utf-8"
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
           python -m nuitka main.py `

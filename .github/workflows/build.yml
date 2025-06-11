@@ -100,11 +100,7 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-package-data=icons `
-            --include-data-files=icons/icon*.png=icons `
-            --include-data-files=icons/*.ico=icons `
-            --include-data-files=icons/papka*.png=icons `
-            --include-data-files=icons/arrow*.png=icons `
+            --include-package-data=icons/ `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `

@@ -12,6 +12,12 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
+      - name: 📂 Verify icons directory
+        run: |
+          dir icons
+          dir icons\*.png
+          dir icons\*.ico
+
       - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
@@ -100,8 +106,8 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-data-files=./icons/*.png=icons/ `
-            --include-data-files=./icons/*.ico=icons/ `
+            --include-data-files=${{ github.workspace }}/icons/*.png=icons `
+            --include-data-files=${{ github.workspace }}/icons/*.ico=icons `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `

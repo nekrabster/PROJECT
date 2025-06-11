@@ -12,10 +12,10 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.12 (Stable for Nuitka)
+      - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: 📦 Install dependencies
@@ -54,6 +54,7 @@ jobs:
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version="1.0.0" `
+            --windows-disable-console `
             --output-filename=Soft-K.exe `
             --include-module=ui.rudich `
             --include-module=ui.complas `

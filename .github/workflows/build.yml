@@ -68,7 +68,6 @@ jobs:
             --include-module=ui.bombardo `
             --include-module=ui.okak `
             --include-module=ui.rass `
-            --include-module=ui.buy_numbers `
             --include-module=ui.timer `
             --include-module=ui.progress `
             --include-module=ui.thread_base `

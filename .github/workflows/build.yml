@@ -1,4 +1,4 @@
-name: Build .exe with Nuitka (fast & secure, Clang)
+name: Build .exe with Nuitka (OneFile + Clang + Optimization)
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13 (для Nuitka 2.3.6+)
+      - name: 🐍 Setup Python 3.13
         uses: actions/setup-python@v4
         with:
           python-version: '3.13'
@@ -24,16 +24,17 @@ jobs:
           pip install -r requirements.txt
           pip install --upgrade --pre nuitka
 
-      - name: ⚙️ Install LLVM (clang-cl)
+      - name: ⚙️ Install LLVM (Clang)
         uses: egor-tensin/setup-clang@v1
         with:
           version: 17
 
-      - name: 🛠 Build with Nuitka (Clang + оптимизация)
+      - name: 🛠 Build with Nuitka (OneFile + Clang)
         shell: pwsh
         run: |
           $env:CC = "clang-cl"
           python -m nuitka main.py `
+            --onefile `
             --standalone `
             --enable-plugin=pyqt6 `
             --output-dir=dist `
@@ -48,8 +49,8 @@ jobs:
             --windows-product-version="1.0.0" `
             --output-filename=Soft-K.exe `
             --include-package=ui `
-            --include-data-dir=icons=icons `
-            --include-data-dir=ui=ui `
+            --include-data-files=icons/**/*.*=icons/ `
+            --include-data-files=ui/**/*.ui=ui/ `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `
@@ -59,5 +60,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
-          path: dist/Soft-K.dist/Soft-K.exe
+          path: dist/Soft-K.exe
           retention-days: 1

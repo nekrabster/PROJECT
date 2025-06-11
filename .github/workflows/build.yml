@@ -12,24 +12,27 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13
+      - name: 🐍 Setup Python 3.11 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13'
+          python-version: '3.11'
           cache: 'pip'
 
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install --upgrade --pre nuitka
+          pip install nuitka
+
+      - name: 🧰 Setup MSVC for Clang
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: ⚙️ Install LLVM (Clang)
         uses: egor-tensin/setup-clang@v1
         with:
           version: 17
 
-      - name: 🛠 Build with Nuitka (OneFile + Clang)
+      - name: 🛠 Build with Nuitka
         shell: pwsh
         run: |
           $env:CC = "clang-cl"
@@ -49,7 +52,7 @@ jobs:
             --windows-product-name="Soft-K" `
             --windows-product-version="1.0.0" `
             --output-filename=Soft-K.exe `
-            --include-package=ui `
+            --include-module=ui.* `
             --include-data-files=icons/**/*.*=icons/ `
             --follow-imports `
             --assume-yes-for-downloads `

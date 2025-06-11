@@ -12,10 +12,10 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
+      - name: 🐍 Setup Python 3.12 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13'
+          python-version: '3.12'
           cache: 'pip'
 
       - name: 📦 Install dependencies
@@ -52,7 +52,51 @@ jobs:
             --windows-product-name="Soft-K" `
             --windows-product-version="1.0.0" `
             --output-filename=Soft-K.exe `
-            --include-module=ui.* `
+            --include-module=ui.rudich `
+            --include-module=ui.complas `
+            --include-module=ui.components `
+            --include-module=ui.malining `
+            --include-module=ui.malina `
+            --include-module=ui.bombardirocrocodilo `
+            --include-module=ui.newtoken `
+            --include-module=ui.kachok `
+            --include-module=ui.session `
+            --include-module=ui.subscribe `
+            --include-module=ui.session_manager `
+            --include-module=ui.sim_manager `
+            --include-module=ui.session_win `
+            --include-module=ui.bombardo `
+            --include-module=ui.okak `
+            --include-module=ui.rass `
+            --include-module=ui.buy_numbers `
+            --include-module=ui.timer `
+            --include-module=ui.progress `
+            --include-module=ui.thread_base `
+            --include-module=ui.apphuy `
+            --include-module=ui.appchuy `
+            --include-module=ui.search `
+            --include-module=ui.proxy_utils `
+            --include-module=ui.mail `
+            --include-module=ui.instructions `
+            --include-module=ui.subs `
+            --include-module=ui.damkrat `
+            --include-module=ui.theme `
+            --include-module=ui.styles `
+            --include-module=ui.top `
+            --include-module=ui.side `
+            --include-module=ui.bottom `
+            --include-module=ui.informatika `
+            --include-module=ui.bot_transfer `
+            --include-module=ui.bot_manager `
+            --include-module=ui.bots_win `
+            --include-module=ui.gulick `
+            --include-module=ui.integraly `
+            --include-module=ui.kms `
+            --include-module=ui.integralypro `
+            --include-module=ui.codik `
+            --include-module=ui.adv `
+            --include-module=ui.filya `
+            --include-module=ui.decorators `
             --include-data-files=icons/**/*.*=icons/ `
             --follow-imports `
             --assume-yes-for-downloads `
@@ -64,4 +108,4 @@ jobs:
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
-          retention-days: 1
+          retention-days: 1 

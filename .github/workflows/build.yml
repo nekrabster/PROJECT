@@ -12,17 +12,17 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13
+      - name: 🐍 Setup Python 3.12 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13'
+          python-version: '3.12'
           cache: 'pip'
 
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install --upgrade --pre nuitka
+          pip install nuitka
 
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
@@ -35,6 +35,7 @@ jobs:
       - name: 🛠 Build with Nuitka
         shell: pwsh
         run: |
+          $env:PYTHONIOENCODING = "utf-8"
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
           python -m nuitka main.py `
@@ -68,6 +69,7 @@ jobs:
             --include-module=ui.bombardo `
             --include-module=ui.okak `
             --include-module=ui.rass `
+            --include-module=ui.buy_numbers `
             --include-module=ui.timer `
             --include-module=ui.progress `
             --include-module=ui.thread_base `

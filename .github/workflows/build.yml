@@ -1,4 +1,4 @@
-name: Build .exe with Nuitka (OneFile + Clang + Optimization)
+name: Build .exe with Nuitka (OneFile + Clang + Full Manual Import)
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13
+      - name: 🐍 Setup Python 3.13 (для Nuitka 2.3.6+)
         uses: actions/setup-python@v4
         with:
           python-version: '3.13'
@@ -24,12 +24,12 @@ jobs:
           pip install -r requirements.txt
           pip install --upgrade --pre nuitka
 
-      - name: ⚙️ Install LLVM (Clang)
+      - name: ⚙️ Install LLVM (clang-cl)
         uses: egor-tensin/setup-clang@v1
         with:
           version: 17
 
-      - name: 🛠 Build with Nuitka (OneFile + Clang)
+      - name: 🛠 Build with Nuitka (OneFile + Clang + оптимизация)
         shell: pwsh
         run: |
           $env:CC = "clang-cl"
@@ -49,12 +49,57 @@ jobs:
             --windows-product-version="1.0.0" `
             --output-filename=Soft-K.exe `
             --include-package=ui `
-            --include-data-files=icons/**/*.*=icons/ `
-            --include-data-files=ui/**/*.ui=ui/ `
+            --include-plugin-directory=ui `
+            --include-data-dir=icons=icons `
+            --include-data-dir=ui=ui `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `
-            --verbose
+            --verbose `
+            --include-module=ui.rudich `
+            --include-module=ui.complas `
+            --include-module=ui.components `
+            --include-module=ui.malining `
+            --include-module=ui.malina `
+            --include-module=ui.bombardirocrocodilo `
+            --include-module=ui.newtoken `
+            --include-module=ui.kachok `
+            --include-module=ui.session `
+            --include-module=ui.subscribe `
+            --include-module=ui.session_manager `
+            --include-module=ui.sim_manager `
+            --include-module=ui.session_win `
+            --include-module=ui.bombardo `
+            --include-module=ui.okak `
+            --include-module=ui.rass `
+            --include-module=ui.timer `
+            --include-module=ui.progress `
+            --include-module=ui.thread_base `
+            --include-module=ui.apphuy `
+            --include-module=ui.appchuy `
+            --include-module=ui.search `
+            --include-module=ui.proxy_utils `
+            --include-module=ui.mail `
+            --include-module=ui.instructions `
+            --include-module=ui.subs `
+            --include-module=ui.damkrat `
+            --include-module=ui.theme `
+            --include-module=ui.styles `
+            --include-module=ui.top `
+            --include-module=ui.side `
+            --include-module=ui.bottom `
+            --include-module=ui.informatika `
+            --include-module=ui.bot_transfer `
+            --include-module=ui.bot_manager `
+            --include-module=ui.bots_win `
+            --include-module=ui.gulick `
+            --include-module=ui.integraly `
+            --include-module=ui.kms `
+            --include-module=ui.integralypro `
+            --include-module=ui.codik `
+            --include-module=ui.adv `
+            --include-module=ui.filya `
+            --include-module=ui.decorators
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4

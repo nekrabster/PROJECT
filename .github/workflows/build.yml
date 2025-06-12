@@ -64,7 +64,7 @@ jobs:
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
+            --windows-product-version="2.3.6" `
             --windows-disable-console `
             --output-filename=Soft-K.exe `
             --include-module=ui.rudich `
@@ -111,7 +111,7 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-package-data=icons `
+            --include-data-files=icons/* `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `

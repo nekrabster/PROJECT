@@ -106,8 +106,8 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-data-files=${{ github.workspace }}/icons/*.png=icons `
-            --include-data-files=${{ github.workspace }}/icons/*.ico=icons `
+            --include-data-files=D:\a\PROJECT\PROJECT\icons\*.png=icons\ `
+            --include-data-files=D:\a\PROJECT\PROJECT\icons\*.ico=icons\ `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `

@@ -12,6 +12,11 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
+      - name: 🧹 Clean icons directory
+        run: |
+          Remove-Item -Path "icons\.DS_Store" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "icons\Thumbs.db" -Force -ErrorAction SilentlyContinue
+
       - name: 📂 Verify icons directory
         run: |
           dir icons
@@ -106,7 +111,7 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-data-dir=icons=icons `
+            --include-package-data=icons `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `

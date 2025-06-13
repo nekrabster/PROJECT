@@ -45,7 +45,7 @@ from ui.bottom import BottomBar
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath('.'), relative_path)
+    return os.path.join(os.path.dirname(__file__), os.pardir, relative_path)
 def load_config():
     if getattr(sys, 'frozen', False):
         base_path = os.path.dirname(sys.executable)
@@ -190,7 +190,7 @@ class MainWindow(QWidget):
         self.is_dark_theme = QApplication.instance().palette().color(QPalette.ColorRole.Window).value() < 128
         QApplication.instance().paletteChanged.connect(self.on_palette_changed)
         self.update_stylesheet()
-        icon_path = os.path.join(os.path.dirname(__file__), os.pardir, "icons", "dispatcher.png")
+        icon_path = resource_path("icons/dispatcher.png")
         self.setWindowIcon(QIcon(icon_path))
     def on_palette_changed(self, *args):
         self.is_dark_theme = QApplication.instance().palette().color(QPalette.ColorRole.Window).value() < 128

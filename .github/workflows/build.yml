@@ -128,9 +128,7 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-data-dir=icons=. `
-            --include-data-files=icons/*.png=icons/ `
-            --include-data-files=icons/*.ico=icons/ `
+            --include-data-dir=icons=icons `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `

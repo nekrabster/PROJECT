@@ -113,6 +113,13 @@ jobs:
             --assume-yes-for-downloads `
             --show-scons `
             --verbose
+
+      - name: Inspect bundle
+        shell: pwsh
+        run: |
+          Expand-Archive -LiteralPath dist/Soft-K.exe -DestinationPath dist_extracted -Force
+          dir dist_extracted\icons
+            
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

@@ -16,13 +16,11 @@ jobs:
         run: |
           Remove-Item -Path "icons\.DS_Store" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "icons\Thumbs.db" -Force -ErrorAction SilentlyContinue
-
       - name: 📂 Verify icons directory
         run: |
           dir icons
           dir icons\*.png
           dir icons\*.ico
-
       - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
@@ -34,7 +32,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install nuitka
-
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 
@@ -116,11 +113,9 @@ jobs:
             --assume-yes-for-downloads `
             --show-scons `
             --verbose
-
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
           retention-days: 1 
-          

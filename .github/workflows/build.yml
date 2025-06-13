@@ -31,7 +31,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka
+          pip install --pre nuitka
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 

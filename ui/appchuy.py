@@ -176,8 +176,21 @@ class AiogramBotConnection(QObject):
     async def get_updates(self, offset=0, timeout=3):
         if not self.bot:
             await self.connect()
-        updates = await self.bot.get_updates(offset=offset, timeout=timeout)
-        return updates
+        while True:
+            try:
+                updates = await self.bot.get_updates(offset=offset, timeout=timeout)
+                return updates
+            except Exception as e:
+                error_text = str(e).lower()
+                if "retry after" in error_text:
+                    import re
+                    match = re.search(r'retry after (\d+)', error_text)
+                    wait_time = int(match.group(1)) if match else 5
+                    self.log_signal.emit(f"⏳ Flood control: ждем {wait_time} сек")
+                    await asyncio.sleep(wait_time)
+                else:
+                    raise
+            await asyncio.sleep(1)  # Минимальная задержка между попытками
     @handle_aiogram_errors
     async def check_connection(self):
         if not self.bot:

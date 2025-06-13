@@ -178,9 +178,12 @@ class BotWorker(BaseThread):
         elif "flood control" in error_str or "too many requests" in error_str:
             self.safe_emit(self.log_signal, f"⚠️ Превышен лимит запросов для бота {self.bot_username}. Ожидание...")
             await asyncio.sleep(5)
-        elif "terminated by other getUpdates request" in error_str:
+        elif "terminated by other getupdates request" in error_str:
             self.safe_emit(self.log_signal, f"⚠️ Конфликт: бот {self.bot_username} уже запущен в другом месте")
             return True
+        elif any(x in error_str for x in ["ssl", "certificate", "handshake", "bad gateway", "connection", "timeout"]):
+            await self.bot_manager.check_connection()
+            return False
         return False
     async def bot_worker(self, *args):
         bot = None

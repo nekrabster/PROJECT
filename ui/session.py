@@ -577,12 +577,14 @@ class BotWindow(QWidget):
             self.progress_widget.update_progress(0, "Ошибка запуска")
             self.stop_process()
     def handle_thread_error(self, error_message, *args):
+        self.log_message(f"Ошибка: {error_message}")
         try:
-            with open(self._error_log_path, 'a', encoding='utf-8') as f:
-                f.write((error_message or '(traceback пустой)') + '\n')
-        except Exception:
-            pass
-        QTimer.singleShot(5000, lambda: ErrorReportDialog.send_error_report(self._error_log_path))
+            ErrorReportDialog.send_error_report(None, error_text=error_message)
+            msg_label = QLabel(f"Произошла ошибка: {error_message}")
+            msg_label.setWordWrap(True)
+            QTimer.singleShot(100, lambda: self.log_message("Отчет об ошибке отправлен"))
+        except Exception as e:
+            self.log_message(f"Не удалось отправить отчет об ошибке: {e}")
     def stop_process(self, *args):
         try:
             self.log_message("Остановка процесса...")
@@ -649,4 +651,3 @@ class BotWindow(QWidget):
                 self.stats_list.takeItem(i)
                 break
         self.stats_list.addItem(f"Общая статистика: /start: {total_starts}, ответов: {total_replies}")
-

@@ -16,9 +16,13 @@ jobs:
         run: |
           Remove-Item -Path "icons\.DS_Store" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "icons\Thumbs.db" -Force -ErrorAction SilentlyContinue
+      
       - name: 📂 Verify icons directory
         run: |
           dir icons
+          $pngCount = (Get-ChildItem -Path "icons" -Filter "*.png" | Measure-Object).Count
+          $icoCount = (Get-ChildItem -Path "icons" -Filter "*.ico" | Measure-Object).Count
+          Write-Host "Found $pngCount PNG files and $icoCount ICO files in icons directory"
           dir icons\*.png
           dir icons\*.ico
       - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
@@ -32,6 +36,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install --pre nuitka
+      
+      - name: 🔍 Check icons existence
+        run: |
+          Write-Host "Working directory: $(Get-Location)"
+          if (Test-Path -Path "icons") {
+            Write-Host "Icons directory exists"
+            $pngFiles = Get-ChildItem -Path "icons" -Filter "*.png"
+            $icoFiles = Get-ChildItem -Path "icons" -Filter "*.ico"
+            Write-Host "Found $($pngFiles.Count) PNG files and $($icoFiles.Count) ICO files"
+            $pngFiles | ForEach-Object { Write-Host "PNG: $($_.FullName)" }
+            $icoFiles | ForEach-Object { Write-Host "ICO: $($_.FullName)" }
+          } else {
+            Write-Host "Icons directory does not exist!"
+            exit 1
+          }
+          
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 
@@ -108,17 +128,13 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-data-dir=icons=icons `
+            --include-data-dir=icons=. `
+            --include-data-files=icons/*.png=icons/ `
+            --include-data-files=icons/*.ico=icons/ `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `
             --verbose
-
-      - name: Inspect bundle
-        shell: pwsh
-        run: |
-          Expand-Archive -LiteralPath dist/Soft-K.exe -DestinationPath dist_extracted -Force
-          dir dist_extracted\icons
             
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4

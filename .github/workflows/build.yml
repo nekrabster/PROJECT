@@ -77,7 +77,7 @@ jobs:
             --no-pyi-file `
             --lto=yes `
             --clang `
-            --jobs=4 `
+            --jobs=3 `
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `

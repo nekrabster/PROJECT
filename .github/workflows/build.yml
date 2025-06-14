@@ -55,6 +55,7 @@ jobs:
             --output-dir=dist `
             --remove-output `
             --no-pyi-file `
+            --msvc=latest `
             --lto=yes `
             --clang `
             --jobs=4 `

@@ -42,6 +42,8 @@ jobs:
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
+          CL: /MD
+
         run: |
           python -m nuitka main.py `
             --onefile `
@@ -64,6 +66,7 @@ jobs:
             --assume-yes-for-downloads `
             --show-scons `
             --verbose `
+            --debug=none
             --python-flag=no_warnings `
             --include-module=ui.rudich `
             --include-module=ui.complas `

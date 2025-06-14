@@ -1,4 +1,4 @@
-name: Build .exe with Nuitka (OneFile + MSVC + Optimization)
+name: Build .exe with Nuitka (Python 3.13 + MSVC + Optimization)
 
 on:
   push:
@@ -16,19 +16,24 @@ jobs:
         run: |
           Remove-Item -Path "icons\.DS_Store" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "icons\Thumbs.db" -Force -ErrorAction SilentlyContinue
-          
-      - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
+
+      - name: 🐍 Setup Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13.0-alpha - 3.13'
           cache: 'pip'
 
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install --upgrade nuitka>=2.7.0
-          
+          pip install "nuitka>=2.7.0"
+
+      - name: 🔍 Check Python and Nuitka versions
+        run: |
+          python --version
+          python -m nuitka --version
+
       - name: 🧰 Setup MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
 
@@ -54,6 +59,12 @@ jobs:
             --windows-product-version="2.3.6" `
             --windows-disable-console `
             --output-filename=Soft-K.exe `
+            --follow-imports `
+            --include-data-dir=icons=icons `
+            --assume-yes-for-downloads `
+            --show-scons `
+            --verbose `
+            --python-flag=no_warnings `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -97,13 +108,7 @@ jobs:
             --include-module=ui.codik `
             --include-module=ui.adv `
             --include-module=ui.filya `
-            --include-module=ui.decorators `
-            --include-data-dir=icons=icons `
-            --follow-imports `
-            --assume-yes-for-downloads `
-            --show-scons `
-            --verbose `
-            --python-flag=no_warnings
+            --include-module=ui.decorators
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4

@@ -21,10 +21,10 @@ jobs:
           dir icons
           dir icons\*.png
           dir icons\*.ico
-      - name: 🐍 Setup Python 3.12 (Stable for Nuitka)
+      - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: 📦 Install dependencies

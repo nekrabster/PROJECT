@@ -1,4 +1,4 @@
-name: Build .exe with Nuitka (OneFile + Clang + Optimization)
+name: Build .exe with Nuitka (OneFile + MSVC + Optimization)
 
 on:
   push:
@@ -28,23 +28,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install --upgrade nuitka>=2.6.4
-          
-      - name: 🧰 Setup MSVC for Clang
+
+      - name: 🧰 Setup MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: ⚙️ Install LLVM (Clang)
-        uses: egor-tensin/setup-clang@v1
-        with:
-          version: 17
-
-      - name: 🛠 Build with Nuitka
+      - name: 🛠 Build with Nuitka using MSVC
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
         run: |
-          $env:CC = "clang-cl"
-          $env:CXX = "clang-cl"
           python -m nuitka main.py `
             --onefile `
             --standalone `
@@ -54,7 +47,6 @@ jobs:
             --no-pyi-file `
             --msvc=latest `
             --lto=yes `
-            --clang `
             --jobs=4 `
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
@@ -111,10 +103,10 @@ jobs:
             --assume-yes-for-downloads `
             --show-scons `
             --verbose
-            
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
-          retention-days: 1 
+          retention-days: 1

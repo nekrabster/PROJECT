@@ -16,7 +16,7 @@ jobs:
         run: |
           Remove-Item -Path "icons\.DS_Store" -Force -ErrorAction SilentlyContinue
           Remove-Item -Path "icons\Thumbs.db" -Force -ErrorAction SilentlyContinue
-
+          
       - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
@@ -28,7 +28,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install --upgrade nuitka>=2.6.4
-
+          
       - name: 🧰 Setup MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
 
@@ -102,7 +102,8 @@ jobs:
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `
-            --verbose
+            --verbose `
+            --python-flag=no_warnings
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4

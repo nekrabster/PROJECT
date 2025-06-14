@@ -125,7 +125,7 @@ class AiogramBotConnection(QObject):
         self.username = username
         self.last_user_id = None
     @handle_aiogram_errors
-    async def connect(self):
+    async def connect(self, *args):
         if self.proxy:
             scheme = self.proxy.get('type', 'socks5')
             ip = self.proxy.get('ip')
@@ -150,7 +150,7 @@ class AiogramBotConnection(QObject):
         self.log_signal.emit(f"✅ Бот {self.username} подключен")
         return self.bot
     @handle_aiogram_errors
-    async def disconnect(self):
+    async def disconnect(self, *args):
         if self.bot:
             try:
                 await self.bot.session.close()
@@ -173,7 +173,7 @@ class AiogramBotConnection(QObject):
         self.log_signal.emit(f"❌ Не удалось переподключить бота {self.username}...")
         return False
     @handle_aiogram_errors
-    async def get_updates(self, offset=0, timeout=3):
+    async def get_updates(self, offset=0, timeout=3, *args):
         if not self.bot:
             await self.connect()
         while True:
@@ -190,9 +190,9 @@ class AiogramBotConnection(QObject):
                     await asyncio.sleep(wait_time)
                 else:
                     raise
-            await asyncio.sleep(1)  # Минимальная задержка между попытками
+            await asyncio.sleep(1)
     @handle_aiogram_errors
-    async def check_connection(self):
+    async def check_connection(self, *args):
         if not self.bot:
             await self.connect()
         try:
@@ -202,7 +202,7 @@ class AiogramBotConnection(QObject):
             self.log_signal.emit(f"⚠️ Ошибка соединения: {e}")
             return await self.reconnect()
     @property
-    def is_connected(self) -> bool:
+    def is_connected(self, *args) -> bool:
         return self.bot is not None
 def select_proxy(index: int, use_proxy: bool, use_proxy_txt: bool, proxies_list: list, config: dict = None):
     proxy = None

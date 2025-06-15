@@ -59,7 +59,6 @@ jobs:
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
-            --msvc-runtime-library=dynamic `
             --windows-product-version=2.3.6 `
             --windows-console-mode=disable `
             --output-filename=Soft-K.exe `

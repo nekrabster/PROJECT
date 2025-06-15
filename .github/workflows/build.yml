@@ -9,67 +9,63 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: 🧾 Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🧹 Clean icons directory
+      - name: Clean icons
         run: |
-          Remove-Item -Path "icons\.DS_Store" -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "icons\Thumbs.db" -Force -ErrorAction SilentlyContinue
+          Remove-Item icons\.DS_Store, icons\Thumbs.db -ErrorAction SilentlyContinue
 
-      - name: 🐍 Setup Python 3.13
+      - name: Setup Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install "nuitka==2.7.7"
+          pip install nuitka==2.7.7
 
-      - name: 🔍 Check Python and Nuitka versions
+      - name: Print versions
         run: |
           python --version
           python -m nuitka --version
 
-      - name: 💾 Check disk space
+      - name: Disk space
         run: dir C:\
 
-      - name: 🧰 Setup MSVC environment
+      - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: 🔎 Check MSVC version
+      - name: Check MSVC
         shell: cmd
         run: cl.exe
 
-      - name: 🛠 Build with Nuitka using MSVC
+      - name: Build with Nuitka
         shell: pwsh
         env:
-          PYTHONIOENCODING: "utf-8"
-          PYTHONLEGACYWINDOWSSTDIO: "utf-8"
-          CL: /MD
+          PYTHONIOENCODING: utf-8
+          CL: '/MD'
           NUITKA_CACHE_DIR: C:\nuitka_cache
         run: |
-          Remove-Item Env:PYTHONDEBUG -ErrorAction SilentlyContinue
-          Remove-Item Env:PYTHONDEVMODE -ErrorAction SilentlyContinue
-          Remove-Item Env:DEBUG -ErrorAction SilentlyContinue
-          $env:CL = '/MD'
+          Remove-Item Env:PYTHONDEBUG,Env:PYTHONDEVMODE,Env:DEBUG -ErrorAction SilentlyContinue
           $args = @(
-            "--onefile"
-            "--standalone"
-            "--enable-plugin=pyqt6"
-            "--output-dir=dist"
-            "--msvc=latest"
-            "--jobs=3"
-            "--windows-icon-from-ico=icon.ico"
-            "--windows-company-name=SecureSoft"
-            "--windows-product-name=Soft-K"
-            "--windows-product-version=2.3.6"
-            "--windows-console-mode=disable"
-            "--output-filename=Soft-K.exe"
-            "--include-data-dir=icons=icons"
+            "--onefile",
+            "--enable-plugin=pyqt6",
+            "--msvc=latest",
+            "--jobs=-1",
+            "--lto=yes",
+            "--strip",
+            "--report=compilation-report.xml",
+            "--windows-icon-from-ico=icon.ico",
+            "--windows-company-name=SecureSoft",
+            "--windows-product-name=Soft-K",
+            "--windows-product-version=2.3.6",
+            "--windows-console-mode=disable",
+            "-o=dist/Soft-K.exe",
+            "--include-data-dir=icons=icons",
             "--include-module=ui.rudich"
             "--include-module=ui.complas"
             "--include-module=ui.components"

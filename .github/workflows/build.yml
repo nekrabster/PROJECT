@@ -63,7 +63,7 @@ jobs:
             "--windows-product-name=Soft-K",
             "--windows-product-version=2.3.6",
             "--windows-console-mode=disable",
-            "-o=dist/Soft-K.exe",
+            "--output-filename=Soft-K.exe",
             "--include-data-dir=icons=icons",
             "--include-module=ui.rudich"
             "--include-module=ui.complas"

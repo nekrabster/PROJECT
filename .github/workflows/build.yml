@@ -63,6 +63,7 @@ jobs:
             --windows-console-mode=disable `
             --output-filename=Soft-K.exe `
             --include-data-dir=icons=icons `
+            --include-stdlib ` # ADDED THIS LINE
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -120,5 +121,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nuitka-crash-report
-          path: nuitka-crash-report.xml
+          path: compilation-report.xml # Changed to compilation-report.xml as per your output
           retention-days: 1

@@ -54,7 +54,6 @@ jobs:
             --onefile `
             --standalone `
             --no-debug `
-            --no-pyi-warnings `
             --assume-yes-for-downloads `
             --enable-plugin=pyqt6 `
             --msvc=latest `

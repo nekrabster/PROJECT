@@ -53,6 +53,7 @@ jobs:
           Remove-Item Env:PYTHONDEBUG,Env:PYTHONDEVMODE,Env:DEBUG -ErrorAction SilentlyContinue
           $args = @(
             "--onefile",
+            "--standalone",
             "--enable-plugin=pyqt6",
             "--msvc=latest",
             "--jobs=-3",
@@ -65,49 +66,51 @@ jobs:
             "--windows-console-mode=disable",
             "--output-filename=Soft-K.exe",
             "--include-data-dir=icons=icons",
-            "--include-module=ui.rudich"
-            "--include-module=ui.complas"
-            "--include-module=ui.components"
-            "--include-module=ui.malining"
-            "--include-module=ui.malina"
-            "--include-module=ui.bombardirocrocodilo"
-            "--include-module=ui.newtoken"
-            "--include-module=ui.kachok"
-            "--include-module=ui.session"
-            "--include-module=ui.subscribe"
-            "--include-module=ui.session_manager"
-            "--include-module=ui.sim_manager"
-            "--include-module=ui.session_win"
-            "--include-module=ui.bombardo"
-            "--include-module=ui.okak"
-            "--include-module=ui.rass"
-            "--include-module=ui.timer"
-            "--include-module=ui.progress"
-            "--include-module=ui.thread_base"
-            "--include-module=ui.apphuy"
-            "--include-module=ui.appchuy"
-            "--include-module=ui.search"
-            "--include-module=ui.proxy_utils"
-            "--include-module=ui.mail"
-            "--include-module=ui.instructions"
-            "--include-module=ui.subs"
-            "--include-module=ui.damkrat"
-            "--include-module=ui.theme"
-            "--include-module=ui.styles"
-            "--include-module=ui.top"
-            "--include-module=ui.side"
-            "--include-module=ui.bottom"
-            "--include-module=ui.informatika"
-            "--include-module=ui.bot_transfer"
-            "--include-module=ui.bot_manager"
-            "--include-module=ui.bots_win"
-            "--include-module=ui.gulick"
-            "--include-module=ui.integraly"
-            "--include-module=ui.kms"
-            "--include-module=ui.integralypro"
-            "--include-module=ui.codik"
-            "--include-module=ui.adv"
-            "--include-module=ui.filya"
+            "--noinclude-debug-mode",
+            "--noinclude-pytest-mode",
+            "--include-module=ui.rudich",
+            "--include-module=ui.complas",
+            "--include-module=ui.components",
+            "--include-module=ui.malining",
+            "--include-module=ui.malina",
+            "--include-module=ui.bombardirocrocodilo",
+            "--include-module=ui.newtoken",
+            "--include-module=ui.kachok",
+            "--include-module=ui.session",
+            "--include-module=ui.subscribe",
+            "--include-module=ui.session_manager",
+            "--include-module=ui.sim_manager",
+            "--include-module=ui.session_win",
+            "--include-module=ui.bombardo",
+            "--include-module=ui.okak",
+            "--include-module=ui.rass",
+            "--include-module=ui.timer",
+            "--include-module=ui.progress",
+            "--include-module=ui.thread_base",
+            "--include-module=ui.apphuy",
+            "--include-module=ui.appchuy",
+            "--include-module=ui.search",
+            "--include-module=ui.proxy_utils",
+            "--include-module=ui.mail",
+            "--include-module=ui.instructions",
+            "--include-module=ui.subs",
+            "--include-module=ui.damkrat",
+            "--include-module=ui.theme",
+            "--include-module=ui.styles",
+            "--include-module=ui.top",
+            "--include-module=ui.side",
+            "--include-module=ui.bottom",
+            "--include-module=ui.informatika",
+            "--include-module=ui.bot_transfer",
+            "--include-module=ui.bot_manager",
+            "--include-module=ui.bots_win",
+            "--include-module=ui.gulick",
+            "--include-module=ui.integraly",
+            "--include-module=ui.kms",
+            "--include-module=ui.integralypro",
+            "--include-module=ui.codik",
+            "--include-module=ui.adv",
+            "--include-module=ui.filya",
             "--include-module=ui.decorators"
           )
           python -m nuitka main.py @args

@@ -116,7 +116,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
-          path: dist/Soft-K.exe
+          path: Soft-K.exe
           retention-days: 1
 
       - name: ☁️ Upload Nuitka crash report

@@ -47,10 +47,15 @@ jobs:
         shell: pwsh
         run: |
           Remove-Item Env:PYTHONDEBUG,Env:PYTHONDEVMODE,Env:DEBUG -ErrorAction SilentlyContinue
-          Remove-Item Env:CL -ErrorAction SilentlyContinue
+          $env:PYTHONOPTIMIZE = "2"
+          $env:PYTHONNOUSERSITE = "1"
+          $env:CL = '/MD'
           python -m nuitka main.py `
             --onefile `
             --standalone `
+            --no-debug `
+            --no-pyi-warnings `
+            --assume-yes-for-downloads `
             --enable-plugin=pyqt6 `
             --msvc=latest `
             --jobs=3 `
@@ -105,7 +110,7 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators
-            
+      
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

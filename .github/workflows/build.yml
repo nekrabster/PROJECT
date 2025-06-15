@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest  # Обновлено до latest
+    runs-on: windows-latest
 
     steps:
       - name: 🧾 Checkout repository
@@ -27,7 +27,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install "nuitka>=2.8.0"  # Последняя версия
+          pip install "nuitka==2.7.7"  # Последняя доступная версия
 
       - name: 🔍 Check Python and Nuitka versions
         run: |
@@ -60,7 +60,7 @@ jobs:
             --remove-output `
             --no-pyi-file `
             --msvc=latest `
-            --jobs=1 `  # Временно уменьшить
+            --jobs=3 `  # Временно уменьшить
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
@@ -122,4 +122,12 @@ jobs:
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
+          retention-days: 1
+
+      - name: ☁️ Upload Nuitka crash report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuitka-crash-report
+          path: nuitka-crash-report.xml
           retention-days: 1

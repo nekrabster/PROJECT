@@ -1,4 +1,4 @@
-from PyQt6.QtCore import pyqtSignal, QTimer
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton,
@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
 )
 from aiogram.types import BotCommand
 from ui.progress import ProgressWidget
-import re
 from ui.thread_base import ThreadStopMixin, BaseThread
 from ui.appchuy import AiogramBotConnection
 class BotThread(BaseThread):
@@ -14,24 +13,18 @@ class BotThread(BaseThread):
     error_signal = pyqtSignal(str, str)
     progress_signal = pyqtSignal(int, str)
     finished_signal = pyqtSignal(str, bool, str, str)
-    def __init__(self, token, param, value, min_delay=1, max_delay=3, list_value=None, idx=None, total=None, parent=None):
+    def __init__(self, token, param, value, parent=None):
         super().__init__(session_file=token, parent=parent)
         self.token = token
         self.param = param
         self.value = value
-        self.min_delay = min_delay
-        self.max_delay = max_delay
-        self.list_value = list_value
-        self.idx = idx
-        self.total = total
-        self._running = True
         self.bot_manager = AiogramBotConnection(token)
         self.bot_manager.log_signal.connect(self.log_signal.emit)
         self.bot_manager.error_signal.connect(lambda t, e: self.error_signal.emit(t, e.message))
     def stop(self, *args, **kwargs):
-        self._running = False
+        self.running = False
     async def process(self, *args, **kwargs):
-        if not self._running:
+        if not self.running:
             self.finished_signal.emit(self.token, False, self.param, self.value)
             return
         try:
@@ -43,9 +36,6 @@ class BotThread(BaseThread):
             except Exception:
                 bot_name = None
             value = self.value
-            if self.list_value is not None and self.idx is not None:
-                if self.idx < len(self.list_value):
-                    value = self.list_value[self.idx].strip()
             if self.param == 'name' and value:
                 await bot.set_my_name(name=value)
                 self.log_signal.emit(f"✅ Имя изменено для {bot_name} ({self.token[:10]}...): '{value}'")
@@ -64,24 +54,8 @@ class BotThread(BaseThread):
             self.progress_signal.emit(100, f"Готово для {bot_name} ({self.token[:10]}...)")
             self.finished_signal.emit(self.token, True, self.param, value)
         except Exception as e:
-            msg = str(e)
-            if 'flood' in msg.lower() or 'too many requests' in msg.lower():
-                seconds = self._extract_flood_seconds(msg)
-                bot_id = bot_name if bot_name else f"{self.token[:10]}..."
-                if seconds:
-                    msg = f"⏳ FloodWait для бота {bot_id}: слишком много запросов. Подождите {seconds} секунд и попробуйте снова."
-                else:
-                    msg = f"⏳ FloodWait для бота {bot_id}: слишком много запросов. Подождите и попробуйте снова."
-            self.error_signal.emit(self.token, msg)
-            self.finished_signal.emit(self.token, False, self.param, value)
-    def _extract_flood_seconds(self, msg, *args, **kwargs):
-        match = re.search(r'(\d+)\s*seconds?', msg)
-        if match:
-            return match.group(1)
-        match = re.search(r'wait\s*(\d+)', msg)
-        if match:
-            return match.group(1)
-        return None
+            self.error_signal.emit(self.token, str(e))
+            self.finished_signal.emit(self.token, False, self.param, self.value)
 class BotManagerDialog(QDialog, ThreadStopMixin):
     bot_updated = pyqtSignal(str, str, str)
     def __init__(self, session_folder=None, selected_sessions=None, parent=None):
@@ -165,7 +139,6 @@ class BotManagerDialog(QDialog, ThreadStopMixin):
         main_layout.addWidget(self.log_area)
         self.progress_widget = ProgressWidget(self)
         main_layout.addWidget(self.progress_widget)
-        QTimer.singleShot(100, self.param_input.setFocus)
     def set_active_param(self, param: str, btn: QPushButton, *args, **kwargs) -> None:
         self.active_param = param
         for b in [self.name_btn, self.desc_btn, self.short_desc_btn]:
@@ -205,12 +178,7 @@ class BotManagerDialog(QDialog, ThreadStopMixin):
             thread = BotThread(
                 token=token,
                 param=self.active_param,
-                value=values[0],
-                min_delay=3,
-                max_delay=3,
-                list_value=values, 
-                idx=idx, 
-                total=len(self.selected_tokens),
+                value=values[idx],
                 parent=self
             )
             thread.log_signal.connect(lambda msg: self.log_area.append(msg))
@@ -235,23 +203,13 @@ class BotManagerDialog(QDialog, ThreadStopMixin):
             btn.setEnabled(True)
         self.param_input.setEnabled(True)
     def handle_session_error(self, error_type: str, message: str, *args, **kwargs) -> None:
-        error_prefix = {
-            'FloodWait': '⏳',
-            'AuthError': '🔒',
-            'NetworkError': '🌐',
-            'FileError': '📁',
-            'ThreadError': '⚠️',
-            'ProcessError': '❌',
-            'InitError': '⚠️'
-        }.get(error_type, '❌')
-        self.log_area.append(f"{error_prefix} {message}")
+        self.log_area.append(f"❌ {message}")
     def update_session_progress(self, percent: int, message: str, *args, **kwargs) -> None:
         if not self._is_closing:
             self.progress_widget.update_progress(percent, message)
     def _handle_thread_finished(self, token: str, success: bool, param: str, value: str, *args, **kwargs) -> None:
         if success:
             self.bot_updated.emit(token, param, value)
-        
         self._on_thread_finished(self.thread_manager.get_thread_by_session(token))
     def _on_thread_finished(self, thread: BaseThread, *args, **kwargs):
         self.completed_tokens.add(thread.token)

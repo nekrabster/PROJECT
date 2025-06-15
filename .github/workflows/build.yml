@@ -63,7 +63,6 @@ jobs:
             --windows-console-mode=disable `
             --output-filename=Soft-K.exe `
             --include-data-dir=icons=icons `
-            --noinclude-debug-mode `
             --noinclude-pytest-mode `
             --include-module=ui.rudich `
             --include-module=ui.complas `

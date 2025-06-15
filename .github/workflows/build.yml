@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest  # Обновлено до latest
 
     steps:
       - name: 🧾 Checkout repository
@@ -20,19 +20,26 @@ jobs:
       - name: 🐍 Setup Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13.0-alpha - 3.13'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install "nuitka>=2.7.0"
+          pip install "nuitka>=2.8.0"  # Последняя версия
 
       - name: 🔍 Check Python and Nuitka versions
         run: |
           python --version
           python -m nuitka --version
+
+      - name: 🔎 Check MSVC version
+        shell: cmd
+        run: cl.exe
+
+      - name: 💾 Check disk space
+        run: dir C:\
 
       - name: 🧰 Setup MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
@@ -43,7 +50,7 @@ jobs:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
           CL: /MD
-
+          NUITKA_CACHE_DIR: C:\nuitka_cache
         run: |
           python -m nuitka main.py `
             --onefile `
@@ -53,8 +60,7 @@ jobs:
             --remove-output `
             --no-pyi-file `
             --msvc=latest `
-            --lto=yes `
-            --jobs=4 `
+            --jobs=1 `  # Временно уменьшить
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
@@ -65,7 +71,6 @@ jobs:
             --include-data-dir=icons=icons `
             --assume-yes-for-downloads `
             --show-scons `
-            --verbose `
             --python-flag=no_warnings `
             --include-module=ui.rudich `
             --include-module=ui.complas `

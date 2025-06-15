@@ -49,7 +49,6 @@ jobs:
           Remove-Item Env:PYTHONDEBUG,Env:PYTHONDEVMODE,Env:DEBUG -ErrorAction SilentlyContinue
           $env:PYTHONOPTIMIZE = "2"
           $env:PYTHONNOUSERSITE = "1"
-          $env:CL = '/MD'
           python -m nuitka main.py `
             --onefile `
             --standalone `

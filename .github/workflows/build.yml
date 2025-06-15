@@ -53,6 +53,9 @@ jobs:
           NUITKA_CACHE_DIR: C:\nuitka_cache
         run: |
           Remove-Item Env:PYTHONDEBUG -ErrorAction SilentlyContinue
+          Remove-Item Env:PYTHONDEVMODE -ErrorAction SilentlyContinue
+          Remove-Item Env:DEBUG -ErrorAction SilentlyContinue
+          $env:CL = '/MD'
           $args = @(
             "--onefile"
             "--standalone"

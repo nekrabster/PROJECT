@@ -27,22 +27,22 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install "nuitka==2.7.7"  # Последняя доступная версия
+          pip install "nuitka==2.7.7"
 
       - name: 🔍 Check Python and Nuitka versions
         run: |
           python --version
           python -m nuitka --version
 
-      - name: 🔎 Check MSVC version
-        shell: cmd
-        run: cl.exe
-
       - name: 💾 Check disk space
         run: dir C:\
 
       - name: 🧰 Setup MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
+
+      - name: 🔎 Check MSVC version
+        shell: cmd
+        run: cl.exe
 
       - name: 🛠 Build with Nuitka using MSVC
         shell: pwsh

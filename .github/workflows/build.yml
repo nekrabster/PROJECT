@@ -47,7 +47,7 @@ jobs:
         shell: pwsh
         run: |
           Remove-Item Env:PYTHONDEBUG,Env:PYTHONDEVMODE,Env:DEBUG -ErrorAction SilentlyContinue
-          $env:CL = '/MD'
+          Remove-Item Env:CL -ErrorAction SilentlyContinue
           python -m nuitka main.py `
             --onefile `
             --standalone `

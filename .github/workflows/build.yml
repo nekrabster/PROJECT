@@ -98,6 +98,7 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
+            --include-data-files="$(python -m certifi)=certifi/cacert.pem" `
             --include-data-files=icons/*.png=icons/ `
             --include-data-files=icons/*.ico=icons/ `
             --follow-imports `

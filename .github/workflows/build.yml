@@ -48,11 +48,10 @@ jobs:
           $env:PYTHONNOUSERSITE = "1"
           python -m nuitka main.py `
             --onefile `
-            --standalone `
             --assume-yes-for-downloads `
             --enable-plugin=pyqt6 `
             --msvc=latest `
-            --jobs=3 `
+            --jobs=6 `
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
@@ -103,7 +102,7 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators
-      
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

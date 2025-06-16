@@ -23,7 +23,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install nuitka
-          pip install PyQt6 PyQt6-Qt6 PyQt6-sip
 
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
@@ -52,7 +51,7 @@ jobs:
             --lto=yes `
             --clang `
             --msvc=latest `
-            --jobs=2 `
+            --jobs=4 `
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `

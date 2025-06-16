@@ -12,10 +12,10 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.12
+      - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: 📦 Install dependencies
@@ -40,7 +40,6 @@ jobs:
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-
           python -m nuitka main.py `
             --onefile `
             --standalone `
@@ -50,13 +49,13 @@ jobs:
             --no-pyi-file `
             --lto=yes `
             --clang `
-            --msvc=latest `
             --jobs=4 `
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
+            --windows-product-name="AViator" `
             --windows-product-version="1.0.0" `
-            --output-filename=Soft-K.exe `
+            --windows-disable-console `
+            --output-filename=AViator.exe `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -101,15 +100,16 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-data-files=icons/*.png=icons/ `
-            --include-data-files=icons/*.ico=icons/ `
+            --include-data-files=icons/*.png=icons `
+            --include-data-files=icons/*.ico=icons `
             --follow-imports `
             --assume-yes-for-downloads `
-            --show-scons
+            --show-scons `
+            --verbose
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Soft-K.exe
-          path: dist/Soft-K.exe
+          name: AViator.exe
+          path: dist/AViator.exe
           retention-days: 1

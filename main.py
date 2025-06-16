@@ -1,7 +1,6 @@
 import os
 os.environ["QASYNC_QT_API"] = "pyqt6"
 
-# --- Блок для HTTPS (TLS) запросов через requests ---
 import sys
 if sys.platform == "win32":
     try:
@@ -10,7 +9,6 @@ if sys.platform == "win32":
         certifi_win32.generate_pem()
     except ImportError:
         print("certifi-win32 не установлен — HTTPS может не работать.")
-# ----------------------------------------------------
 
 import asyncio
 from qasync import QEventLoop, QApplication

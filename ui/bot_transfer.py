@@ -10,7 +10,7 @@ from PyQt6.QtCore import pyqtSignal
 from ui.thread_base import ThreadStopMixin, BaseThread
 from ui.session_win import SessionWindow
 from ui.progress import ProgressWidget
-from ui.apphuy import TelegramConnection, TelegramCustomError
+from ui.apphuy import TelegramConnection
 from ui.okak import ErrorReportDialog
 from telethon import functions
 class BotTransferThread(BaseThread):

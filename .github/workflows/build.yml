@@ -18,12 +18,12 @@ jobs:
           python-version: '3.13'
           cache: 'pip'
 
-      - name: 📦 Install dependencies including Nuitka and PyQt6 plugin
+      - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka nuitka-plugin-pyqt6
-
+          pip install nuitka
+          
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 

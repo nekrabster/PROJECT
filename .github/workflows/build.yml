@@ -51,10 +51,8 @@ jobs:
           $env:PYTHONNOUSERSITE = "1"
           python -m nuitka main.py `
             --onefile `
-            --standalone `
             --assume-yes-for-downloads `
             --enable-plugin=pyqt6 `
-            --python-debug=no `
             --msvc=latest `
             --jobs=4 `
             --windows-icon-from-ico=icon.ico `

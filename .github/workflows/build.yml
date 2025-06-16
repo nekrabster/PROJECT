@@ -46,16 +46,19 @@ jobs:
           Remove-Item Env:PYTHONDEBUG,Env:PYTHONDEVMODE,Env:DEBUG -ErrorAction SilentlyContinue
           $env:PYTHONOPTIMIZE = "2"
           $env:PYTHONNOUSERSITE = "1"
+          $env:PYTHON_FORCE_RELEASE = "1"   # Добавляем эту переменную
           python -m nuitka main.py `
             --onefile `
             --assume-yes-for-downloads `
             --enable-plugin=pyqt6 `
             --msvc=latest `
-            --jobs=6 `
+            --jobs=4 `
+            --python-version=3.13 `   # Явно указываем версию Python
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version=2.3.6 `
+            --windows-console-mode=disable `
             --output-filename=Soft-K.exe `
             --include-data-dir=icons=icons `
             --include-module=ui.rudich `

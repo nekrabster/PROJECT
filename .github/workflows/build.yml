@@ -51,14 +51,10 @@ jobs:
           $env:PYTHONNOUSERSITE = "1"
           python -m nuitka main.py `
             --onefile `
-            --standalone `
             --assume-yes-for-downloads `
             --enable-plugin=pyqt6 `
-            --enable-plugin=lto `
             --msvc=latest `
             --jobs=4 `
-            --python-flag=-OO `
-            --remove-output `
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
@@ -66,8 +62,52 @@ jobs:
             --windows-console-mode=disable `
             --output-filename=Soft-K.exe `
             --include-data-dir=icons=icons `
-            --include-package=ui
-
+            --include-module=ui.rudich `
+            --include-module=ui.complas `
+            --include-module=ui.components `
+            --include-module=ui.malining `
+            --include-module=ui.malina `
+            --include-module=ui.bombardirocrocodilo `
+            --include-module=ui.newtoken `
+            --include-module=ui.kachok `
+            --include-module=ui.session `
+            --include-module=ui.subscribe `
+            --include-module=ui.session_manager `
+            --include-module=ui.sim_manager `
+            --include-module=ui.session_win `
+            --include-module=ui.bombardo `
+            --include-module=ui.okak `
+            --include-module=ui.rass `
+            --include-module=ui.timer `
+            --include-module=ui.progress `
+            --include-module=ui.thread_base `
+            --include-module=ui.apphuy `
+            --include-module=ui.appchuy `
+            --include-module=ui.search `
+            --include-module=ui.proxy_utils `
+            --include-module=ui.mail `
+            --include-module=ui.instructions `
+            --include-module=ui.subs `
+            --include-module=ui.damkrat `
+            --include-module=ui.theme `
+            --include-module=ui.styles `
+            --include-module=ui.top `
+            --include-module=ui.side `
+            --include-module=ui.bottom `
+            --include-module=ui.informatika `
+            --include-module=ui.bot_transfer `
+            --include-module=ui.bot_manager `
+            --include-module=ui.bots_win `
+            --include-module=ui.gulick `
+            --include-module=ui.integraly `
+            --include-module=ui.kms `
+            --include-module=ui.integralypro `
+            --include-module=ui.codik `
+            --include-module=ui.adv `
+            --include-module=ui.filya `
+            --include-module=ui.decorators `
+            --lto=no
+            
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

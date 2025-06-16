@@ -1,126 +1,96 @@
-name: Build .exe with Nuitka (Python 3.13 + MSVC + Optimization)
+name: Build .exe with Nuitka
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        job_index: [0, 1, 2, 3]  # 4 parallel jobs
+      fail-fast: false
 
     steps:
-      - name: Checkout code
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Clean icons
-        run: |
-          Remove-Item icons\.DS_Store, icons\Thumbs.db -ErrorAction SilentlyContinue
-      - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: '3.13'
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka==2.6.9
-      - name: Print versions
-        run: |
-          python --version
-          python -m nuitka --version
-      - name: Disk space
-        run: dir C:\
+          pip install nuitka zstandard
 
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Check MSVC
-        shell: cmd
-        run: cl.exe
-
-      - name: Build with Nuitka
+      - name: 🔄 Delete existing .py files
         shell: pwsh
         run: |
-          Remove-Item Env:PYTHONDEBUG,Env:PYTHONDEVMODE,Env:DEBUG -ErrorAction SilentlyContinue
-          $env:PYTHONOPTIMIZE = "2"
-          $env:PYTHONNOUSERSITE = "1"
-          $env:PYTHON_FORCE_RELEASE = "1"
-          
-          $arguments = @(
-            "main.py",
-            "--onefile",
-            "--assume-yes-for-downloads",
-            "--enable-plugin=pyqt6",
-            "--msvc=latest",
-            "--jobs=4",
-            "--windows-icon-from-ico=icon.ico",
-            "--windows-company-name=SecureSoft",
-            "--windows-product-name=Soft-K",
-            "--windows-product-version=2.3.6",
-            "--windows-console-mode=disable",
-            "--output-filename=Soft-K.exe",
-            "--include-data-dir=icons=icons",
-            "--include-module=ui.rudich",
-            "--include-module=ui.complas",
-            "--include-module=ui.components",
-            "--include-module=ui.malining",
-            "--include-module=ui.malina",
-            "--include-module=ui.bombardirocrocodilo",
-            "--include-module=ui.newtoken",
-            "--include-module=ui.kachok",
-            "--include-module=ui.session",
-            "--include-module=ui.subscribe",
-            "--include-module=ui.session_manager",
-            "--include-module=ui.sim_manager",
-            "--include-module=ui.session_win",
-            "--include-module=ui.bombardo",
-            "--include-module=ui.okak",
-            "--include-module=ui.rass",
-            "--include-module=ui.timer",
-            "--include-module=ui.progress",
-            "--include-module=ui.thread_base",
-            "--include-module=ui.apphuy",
-            "--include-module=ui.appchuy",
-            "--include-module=ui.search",
-            "--include-module=ui.proxy_utils",
-            "--include-module=ui.mail",
-            "--include-module=ui.instructions",
-            "--include-module=ui.subs",
-            "--include-module=ui.damkrat",
-            "--include-module=ui.theme",
-            "--include-module=ui.styles",
-            "--include-module=ui.top",
-            "--include-module=ui.side",
-            "--include-module=ui.bottom",
-            "--include-module=ui.informatika",
-            "--include-module=ui.bot_transfer",
-            "--include-module=ui.bot_manager",
-            "--include-module=ui.bots_win",
-            "--include-module=ui.gulick",
-            "--include-module=ui.integraly",
-            "--include-module=ui.kms",
-            "--include-module=ui.integralypro",
-            "--include-module=ui.codik",
-            "--include-module=ui.adv",
-            "--include-module=ui.filya",
-            "--include-module=ui.decorators"
-          )
-          
-          python -m nuitka @arguments
+          Get-ChildItem "ui" -Recurse -Include *.py -Force | Remove-Item -Force
 
-      - name: ☁️ Upload .exe as artifact
+      - name: 🛠️ Compile with Nuitka
+        run: |
+          python -m nuitka --onefile --windows-disable-console --windows-icon=icon.ico `
+          --output-filename=Soft-K.exe --jobs=4 --lto=yes --python-flag=-OO `
+          --enable-plugin=pyqt6 --include-package=ui --include-module=bombardirocrocodilo `
+          --include-module=complas --include-module=components --include-module=malining `
+          --include-module=malina --include-module=newtoken --include-module=kachok `
+          --include-module=session --include-module=subscribe --include-module=session_manager `
+          --include-module=sim_manager --include-module=session_win --include-module=bombardo `
+          --include-module=okak --include-module=rass --include-module=timer --include-module=progress `
+          --include-module=thread_base --include-module=apphuy --include-module=appchuy `
+          --include-module=search --include-module=proxy_utils --include-module=mail `
+          --include-module=instructions --include-module=subs --include-module=damkrat `
+          --include-module=theme --include-module=styles --include-module=top --include-module=side `
+          --include-module=bottom --include-module=informatika --include-module=bot_transfer `
+          --include-module=bot_manager --include-module=bots_win --include-module=gulick `
+          --include-module=integralypro --include-module=kms --include-module=integraly `
+          --include-module=codik --include-module=adv --include-module=decorators --include-module=filya `
+          --include-data-dir=icons=icons --include-data-file=icon.ico `
+          --experimental=use_pefile --experimental=use_pefile_recurse `
+          --noinclude-custom-mode=error --warn-implicit-exceptions `
+          --file-reference-choice=runtime --assume-yes-for-downloads `
+          --follow-stdlib --remove-output main.py
+
+      - name: 📦 Package executable
+        run: |
+          mkdir dist
+          copy Soft-K.exe dist
+
+      - name: ☁️ Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Soft-K.exe
-          path: Soft-K.exe
+          name: Soft-K-${{ matrix.job_index }}.exe
+          path: dist/Soft-K.exe
           retention-days: 1
 
-      - name: ☁️ Upload Nuitka crash report
-        if: failure()
-        uses: actions/upload-artifact@v4
+  cleanup:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: 🧽 Delete old artifacts
+        uses: actions/github-script@v7
         with:
-          name: nuitka-crash-report
-          path: compilation-report.xml # Changed to compilation-report.xml as per your output
-          retention-days: 1
+          script: |
+            const daysOld = 7;
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const now = new Date();
+            for (const artifact of artifacts.data.artifacts) {
+              const createdAt = new Date(artifact.created_at);
+              const ageInDays = (now - createdAt) / (1000 * 60 * 60 * 24);
+              if (artifact.name.startsWith('Soft-K-') && ageInDays > daysOld) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+              }
+            }

@@ -1,5 +1,4 @@
-name: Build .exe with Nuitka (OneFile + Clang + Optimization)
-
+name: Build .exe with Nuitka (OneFile + Clang + Optimization) 
 on:
   push:
     branches: [main]
@@ -12,10 +11,10 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.12 (Stable for Nuitka)
+      - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: 📦 Install dependencies
@@ -23,7 +22,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install nuitka
-
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 
@@ -54,6 +52,7 @@ jobs:
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version="1.0.0" `
+            --windows-disable-console `
             --output-filename=Soft-K.exe `
             --include-module=ui.rudich `
             --include-module=ui.complas `
@@ -99,18 +98,15 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-data-files=icons/*.png=icons/ `
-            --include-data-files=icons/*.ico=icons/ `
+            --include-data-files=icons/*.png=icons `
+            --include-data-files=icons/*.ico=icons `
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `
             --verbose
-
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
           retention-days: 1 
-
-пиши по русски - вот у меня @/icons 

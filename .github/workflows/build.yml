@@ -12,7 +12,7 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
+      - name: 🐍 Setup Python 3.13
         uses: actions/setup-python@v4
         with:
           python-version: '3.13'
@@ -25,7 +25,6 @@ jobs:
           pip install nuitka
           pip install PyQt6 PyQt6-Qt6 PyQt6-sip
 
-          
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 
@@ -42,6 +41,7 @@ jobs:
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
+
           python -m nuitka main.py `
             --onefile `
             --standalone `
@@ -51,7 +51,8 @@ jobs:
             --no-pyi-file `
             --lto=yes `
             --clang `
-            --jobs=4 `
+            --msvc=latest `
+            --jobs=2 `
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
@@ -105,11 +106,11 @@ jobs:
             --include-data-files=icons/*.ico=icons/ `
             --follow-imports `
             --assume-yes-for-downloads `
-            --show-scons `
+            --show-scons
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
-          retention-days: 1 
+          retention-days: 1

@@ -106,7 +106,7 @@ jobs:
             --follow-imports `
             --assume-yes-for-downloads `
             --show-scons `
-            --verbose
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

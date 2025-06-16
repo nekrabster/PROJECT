@@ -16,17 +16,17 @@ jobs:
         run: |
           Remove-Item icons\.DS_Store, icons\Thumbs.db -ErrorAction SilentlyContinue
 
-      - name: Setup Python 3.12
+      - name: Setup Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka==2.6.9
+          pip install nuitka==2.7.8
 
       - name: Print versions
         run: |

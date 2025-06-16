@@ -54,8 +54,9 @@ jobs:
             --standalone `
             --assume-yes-for-downloads `
             --enable-plugin=pyqt6 `
+            --python-debug=no `
             --msvc=latest `
-            --jobs=3 `
+            --jobs=4 `
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `

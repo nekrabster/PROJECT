@@ -47,6 +47,7 @@ jobs:
           $env:PYTHONOPTIMIZE = "2"
           $env:PYTHONNOUSERSITE = "1"
           $env:PYTHON_FORCE_RELEASE = "1"
+          
           $arguments = @(
             "main.py",
             "--onefile",
@@ -54,7 +55,6 @@ jobs:
             "--enable-plugin=pyqt6",
             "--msvc=latest",
             "--jobs=4",
-            "--python-version=3.13",
             "--windows-icon-from-ico=icon.ico",
             "--windows-company-name=SecureSoft",
             "--windows-product-name=Soft-K",

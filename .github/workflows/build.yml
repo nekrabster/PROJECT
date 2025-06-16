@@ -41,10 +41,11 @@ jobs:
       - name: 🧠 Ensure enough disk
         run: dir C:\
 
-      - name: 🔧 Setup MSVC environment
-        uses: ilammy/msvc-dev-cmd@v1
-        id: msvc
-
+      - name: Setup MSVC environment
+        shell: cmd
+        run: |
+          "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && cl.exe
+      
       - name: 🛡️ Build optimized standalone .exe with Nuitka
         shell: pwsh
         run: |

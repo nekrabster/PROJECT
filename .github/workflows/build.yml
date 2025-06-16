@@ -32,6 +32,13 @@ jobs:
         with:
           version: 17
 
+      - name: 🧰 Install Visual Studio Build Tools
+        uses: ilammy/msvc-dev-cmd@v1
+      
+      - name: 🧠 Compile with Nuitka
+        run: |
+          python -m nuitka --standalone --enable-plugin=pyqt6 --mingw64 main.py
+      
       - name: 🛠 Build with Nuitka
         shell: pwsh
         env:

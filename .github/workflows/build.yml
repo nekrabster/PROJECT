@@ -50,6 +50,7 @@ jobs:
             --include-package=requests ^
             --include-data-dir=icons=icons ^
             --include-data-files=requirements.txt=requirements.txt ^
+            --include-data-files=${{ steps.certifi.outputs.path }}=certifi/cacert.pem ^
             --enable-plugins=pyqt6 ^
             --jobs=4 ^
             --lto=yes ^

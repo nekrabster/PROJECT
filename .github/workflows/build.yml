@@ -41,7 +41,6 @@ jobs:
             --jobs=4 ^
             --lto=yes ^
             --static-libpython=yes ^
-            --mingw64=yes ^
             --remove-output ^
             --nofollow-import-to=test ^
             --nofollow-import-to=tkinter ^

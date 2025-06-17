@@ -31,7 +31,6 @@ jobs:
           python -m nuitka main.py
           --standalone
           --enable-plugin=pyqt6
-          --enable-plugin=qasync
           --windows-icon-from-ico=icon.ico
           --windows-product-name=AViator
           --windows-company-name=YourCompany

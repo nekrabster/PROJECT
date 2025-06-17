@@ -40,7 +40,6 @@ jobs:
             --enable-plugins=pyqt6 ^
             --jobs=4 ^
             --lto=yes ^
-            --static-libpython=yes ^
             --remove-output ^
             --nofollow-import-to=test ^
             --nofollow-import-to=tkinter ^

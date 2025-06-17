@@ -1,116 +1,110 @@
-name: Build .exe with Nuitka (OneFile + Clang + Optimization)
+name: Build AViator
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest
+    strategy:
+      max-parallel: 4
 
     steps:
-      - name: 🧾 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
-          cache: 'pip'
+          python-version: 3.13
 
-      - name: 📦 Install Python dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka
+          pip install nuitka==2.7.7
 
-      - name: ⚙️ Install LLVM (Clang)
-        uses: egor-tensin/setup-clang@v1
-        with:
-          version: 17
+      - name: Build with Nuitka
+        run: >
+          python -m nuitka main.py
+          --standalone
+          --enable-plugin=pyqt6
+          --enable-plugin=qasync
+          --windows-icon-from-ico=icon.ico
+          --windows-product-name=AViator
+          --windows-company-name=YourCompany
+          --windows-file-version=1.0.0
+          --windows-file-description=AViator
+          --windows-disable-console
+          --output-dir=build
+          --output-filename=AViator
+          --onefile
+          --nofollow-import-to=tkinter
+          --include-data-dir=icons=icons
+          --include-data-file=requirements.txt=requirements.txt
+          --include-package=ui
+          --include-module=ui.rudich
+          --include-module=ui.complas
+          --include-module=ui.components
+          --include-module=ui.malining
+          --include-module=ui.malina
+          --include-module=ui.bombardirocrocodilo
+          --include-module=ui.newtoken
+          --include-module=ui.kachok
+          --include-module=ui.session
+          --include-module=ui.subscribe
+          --include-module=ui.session_manager
+          --include-module=ui.sim_manager
+          --include-module=ui.session_win
+          --include-module=ui.bombardo
+          --include-module=ui.okak
+          --include-module=ui.rass
+          --include-module=ui.timer
+          --include-module=ui.progress
+          --include-module=ui.thread_base
+          --include-module=ui.apphuy
+          --include-module=ui.appchuy
+          --include-module=ui.search
+          --include-module=ui.proxy_utils
+          --include-module=ui.mail
+          --include-module=ui.instructions
+          --include-module=ui.subs
+          --include-module=ui.damkrat
+          --include-module=ui.theme
+          --include-module=ui.styles
+          --include-module=ui.top
+          --include-module=ui.side
+          --include-module=ui.bottom
+          --include-module=ui.informatika
+          --include-module=ui.bot_transfer
+          --include-module=ui.bot_manager
+          --include-module=ui.bots_win
+          --include-module=ui.gulick
+          --include-module=ui.integraly
+          --include-module=ui.kms
+          --include-module=ui.integralypro
+          --include-module=ui.codik
+          --include-module=ui.adv
+          --include-module=ui.filya
+          --include-module=ui.decorators
+          --remove-output
+          --assume-yes-for-downloads
+          --disable-console
+          --jobs=4
+          --lto=yes
+          --clang
+          --mingw64
+          --nofollow-import-to=tkinter,test,unittest
+          --noinclude-unittest-mode=error
+          --noinclude-setuptools-mode=error
+          --static-libpython=yes
+          --show-progress
+          --verbose
 
-      - name: 🧰 Setup MSVC for Clang
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: 🧠 Build .exe with Nuitka
-        shell: pwsh
-        env:
-          PYTHONIOENCODING: "utf-8"
-          PYTHONLEGACYWINDOWSSTDIO: "utf-8"
-          CC: "clang-cl"
-          CXX: "clang-cl"
-        run: |
-          python -m nuitka main.py `
-            --standalone `
-            --onefile `
-            --mingw64 `
-            --clang `
-            --enable-plugin=pyqt6 `
-            --output-dir=dist `
-            --output-filename=AViator.exe `
-            --remove-output `
-            --no-pyi-file `
-            --assume-yes-for-downloads `
-            --lto=yes `
-            --jobs=4 `
-            --windows-icon-from-ico=icon.ico `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="AViator" `
-            --windows-product-version="1.0.0" `
-            --windows-file-version="1.0.0.0" `
-            --windows-console-mode=disable `
-            --include-data-dir=icons=icons `
-            --include-module=ui.rudich `
-            --include-module=ui.complas `
-            --include-module=ui.components `
-            --include-module=ui.malining `
-            --include-module=ui.malina `
-            --include-module=ui.bombardirocrocodilo `
-            --include-module=ui.newtoken `
-            --include-module=ui.kachok `
-            --include-module=ui.session `
-            --include-module=ui.subscribe `
-            --include-module=ui.session_manager `
-            --include-module=ui.sim_manager `
-            --include-module=ui.session_win `
-            --include-module=ui.bombardo `
-            --include-module=ui.okak `
-            --include-module=ui.rass `
-            --include-module=ui.timer `
-            --include-module=ui.progress `
-            --include-module=ui.thread_base `
-            --include-module=ui.apphuy `
-            --include-module=ui.appchuy `
-            --include-module=ui.search `
-            --include-module=ui.proxy_utils `
-            --include-module=ui.mail `
-            --include-module=ui.instructions `
-            --include-module=ui.subs `
-            --include-module=ui.damkrat `
-            --include-module=ui.theme `
-            --include-module=ui.styles `
-            --include-module=ui.top `
-            --include-module=ui.side `
-            --include-module=ui.bottom `
-            --include-module=ui.informatika `
-            --include-module=ui.bot_transfer `
-            --include-module=ui.bot_manager `
-            --include-module=ui.bots_win `
-            --include-module=ui.gulick `
-            --include-module=ui.integraly `
-            --include-module=ui.kms `
-            --include-module=ui.integralypro `
-            --include-module=ui.codik `
-            --include-module=ui.adv `
-            --include-module=ui.filya `
-            --include-module=ui.decorators `
-            --follow-imports `
-            --show-scons `
-            --verbose
-
-      - name: ☁️ Upload compiled .exe
+      - name: Upload AViator.exe
         uses: actions/upload-artifact@v4
         with:
-          name: AViator.exe
-          path: dist/AViator.exe
-          retention-days: 1
+          name: AViator
+          path: build/AViator.exe

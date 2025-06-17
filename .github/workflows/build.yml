@@ -12,34 +12,27 @@ jobs:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13 (Stable for Nuitka)
-        uses: actions/setup-python@v4
+      - name: 🐍 Setup Python 3.13
+        uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install nuitka
-          
-      - name: 🧰 Setup MSVC for Clang
-        uses: ilammy/msvc-dev-cmd@v1
 
       - name: ⚙️ Install LLVM (Clang)
         uses: egor-tensin/setup-clang@v1
         with:
           version: 17
 
-      - name: 🧰 Install Visual Studio Build Tools
+      - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
-      
-      - name: 🧠 Compile with Nuitka
-        run: |
-          python -m nuitka --standalone --enable-plugin=pyqt6 --mingw64 main.py
-      
-      - name: 🛠 Build with Nuitka
+
+      - name: 🧠 Build .exe with Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
@@ -48,21 +41,25 @@ jobs:
           CXX: "clang-cl"
         run: |
           python -m nuitka main.py `
-            --onefile `
             --standalone `
+            --onefile `
+            --mingw64 `
+            --clang `
             --enable-plugin=pyqt6 `
             --output-dir=dist `
+            --output-filename=AViator.exe `
             --remove-output `
             --no-pyi-file `
+            --assume-yes-for-downloads `
             --lto=yes `
-            --clang `
             --jobs=4 `
             --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="AViator" `
             --windows-product-version="1.0.0" `
+            --windows-file-version="1.0.0.0" `
             --windows-console-mode=disable `
-            --output-filename=AViator.exe `
+            --include-data-dir=icons=icons `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -107,13 +104,11 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-data-dir=icons=icons `
             --follow-imports `
-            --assume-yes-for-downloads `
             --show-scons `
             --verbose
 
-      - name: ☁️ Upload .exe as artifact
+      - name: ☁️ Upload compiled .exe
         uses: actions/upload-artifact@v4
         with:
           name: AViator.exe

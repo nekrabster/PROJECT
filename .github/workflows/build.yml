@@ -20,12 +20,11 @@ jobs:
 
       - name: 📦 Install dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install nuitka==2.7.7
 
       - name: ⚙️ Build AViator.exe
-        # Чтобы "^" работал, используем CMD вместо PowerShell
         shell: cmd
         run: |
           python -m nuitka ^
@@ -36,9 +35,7 @@ jobs:
             --windows-icon-from-ico=icon.ico ^
             --include-data-dir=icons=icons ^
             --include-package=ui ^
-            --enable-plugin=qt-plugins ^
             --remove-output ^
-            --disable-console ^
             --lto=yes ^
             --jobs=4 ^
             --cache-dir=.nuitka-cache

@@ -20,23 +20,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13.5'
+          python-version: '3.13.1'
           architecture: 'x64'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install nuitka==2.7.7 -r requirements.txt
-
-      - name: Download and Extract depends.exe
-        shell: pwsh
-        run: |
-          $cachePath = "$env:LOCALAPPDATA\Nuitka\Nuitka\Cache\downloads\depends\x86_64"
-          mkdir $cachePath -Force
-          $zipUrl = "http://dependencywalker.com/depends22_x64.zip"
-          $zipFile = "$cachePath\depends.zip"
-          Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
-          Expand-Archive -Path $zipFile -DestinationPath $cachePath -Force
 
       - name: Build with Nuitka
         shell: cmd
@@ -46,23 +36,10 @@ jobs:
             --output-filename=AViator.exe ^
             --windows-icon-from-ico=icon.ico ^
             --include-package=ui ^
-            --include-package=requests ^
-            --include-package=certifi ^
-            --include-package=telethon ^
-            --include-package=aiogram ^
-            --include-package=aiofiles ^
-            --include-package=pandas ^
-            --include-package=psutil ^
-            --include-package-data=certifi ^
             --include-data-dir=icons=icons ^
-            --include-data-files=requirements.txt=requirements.txt ^
-            --enable-plugin=pyqt6 ^
             --jobs=4 ^
             --lto=yes ^
             --remove-output ^
-            --nofollow-import-to=test ^
-            --nofollow-import-to=tkinter ^
-            --nofollow-import-to=unittest ^
             main.py
 
       - name: Upload AViator.exe artifact

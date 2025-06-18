@@ -38,6 +38,12 @@ jobs:
           Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
           Expand-Archive -Path $zipFile -DestinationPath $cachePath -Force
 
+      - name: Get certifi cacert.pem path
+        id: certifi
+        run: |
+          python -c "import certifi; print(certifi.where())" > certifi_path.txt
+          echo "path=$(cat certifi_path.txt)" >> $GITHUB_OUTPUT
+
       - name: Build with Nuitka
         shell: cmd
         run: |
@@ -59,7 +65,7 @@ jobs:
             --nofollow-import-to=tkinter ^
             --nofollow-import-to=unittest ^
             main.py
-
+            
       - name: Upload AViator.exe artifact
         uses: actions/upload-artifact@v4
         with:

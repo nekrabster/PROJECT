@@ -46,10 +46,14 @@ jobs:
             --output-filename=AViator.exe ^
             --windows-icon-from-ico=icon.ico ^
             --include-package=ui ^
+            --include-package=requests ^
+            --include-package=certifi ^
+            --include-package=pandas ^
+            --include-package=telethon ^
             --include-data-dir=icons=icons ^
             --include-data-files=requirements.txt=requirements.txt ^
+            --include-data-files=certifi/cacert.pem=certifi/cacert.pem ^
             --enable-plugin=pyqt6 ^
-            --enable-plugin=requests ^
             --enable-plugin=pandas ^
             --enable-plugin=telethon ^
             --jobs=4 ^

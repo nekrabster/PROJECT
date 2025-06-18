@@ -54,8 +54,6 @@ jobs:
             --include-data-files=requirements.txt=requirements.txt ^
             --include-data-files=certifi/cacert.pem=certifi/cacert.pem ^
             --enable-plugin=pyqt6 ^
-            --enable-plugin=pandas ^
-            --enable-plugin=telethon ^
             --jobs=4 ^
             --lto=yes ^
             --remove-output ^

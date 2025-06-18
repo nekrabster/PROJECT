@@ -13,4 +13,4 @@ phonenumbers
 aiosmtplib
 pandas
 psutil>=5.9.0
-certifi
+

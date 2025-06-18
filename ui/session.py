@@ -22,15 +22,14 @@ class BotWorker(BaseThread):
     stats_signal = pyqtSignal(str, int, int, int)
     finished_signal = pyqtSignal(str, str)
     def __init__(self, token, proxy=None, text=None, min_delay=1, max_delay=5,
-                react_to_start=True, react_to_messages=True, parent=None):
+                reply_to_all=False, parent=None):
         super().__init__(session_file=token, parent=parent)
         self.token = token
         self.proxy = proxy
         self.text = text
         self.min_delay = min_delay
         self.max_delay = max_delay
-        self.react_to_start = react_to_start
-        self.react_to_messages = react_to_messages
+        self.reply_to_all = reply_to_all
         self.timer = Timer(min_delay, max_delay)
         self._running = True
         self._stop_event = None
@@ -91,21 +90,21 @@ class BotWorker(BaseThread):
         self.safe_emit(self.log_signal, f"✅ Бот {self.bot_username} успешно запущен")
     async def _handle_start_command(self, message, *args):
         user_id = message.from_user.id
-        if user_id not in self.started_users:
+        is_new_user = user_id not in self.started_users
+        if is_new_user:
             self.safe_add_user(user_id, self.started_users)
-            self.safe_update_stats(
-                start_count=self.start_count + 1,
-                reply_count=self.reply_count + 1
-            )
+            self.safe_update_stats(start_count=self.start_count + 1)
             if getattr(message.from_user, "is_premium", False) and user_id not in self.premium_users:
                 self.safe_update_stats(premium_count=self.premium_count + 1)
                 self.safe_add_user(user_id, self.premium_users)
             await self.save_user_id(user_id)
+        if self.reply_to_all:
+            self.safe_update_stats(reply_count=self.reply_count + 1)
             await self._send_response(message)
     async def _handle_regular_message(self, message, *args):
-        if self.react_to_messages:
-            user_id = message.from_user.id
-            await self.save_user_id(user_id)
+        user_id = message.from_user.id
+        await self.save_user_id(user_id)
+        if self.reply_to_all:
             self.safe_update_stats(reply_count=self.reply_count + 1)
             await self._send_response(message)
     async def _send_response(self, message, *args):
@@ -131,7 +130,7 @@ class BotWorker(BaseThread):
     async def _handle_update(self, update, *args):
         if update.message:
             message = update.message
-            if message.text and message.text.startswith('/start') and self.react_to_start:
+            if message.text and message.text.startswith('/start') and self.reply_to_all:
                 await self._handle_start_command(message)
             elif not (message.text and message.text.startswith('/start')):
                 await self._handle_regular_message(message)
@@ -173,17 +172,13 @@ class BotWorker(BaseThread):
     async def _handle_general_error(self, error, *args):
         error_str = str(error).lower()
         if "unauthorized" in error_str:
-            self.safe_emit(self.log_signal, f"⚠️ Бот {self.bot_username} не авторизован")
             return True
         elif "flood control" in error_str or "too many requests" in error_str:
-            self.safe_emit(self.log_signal, f"⚠️ Превышен лимит запросов для бота {self.bot_username}. Ожидание...")
             await asyncio.sleep(5)
         elif "terminated by other getupdates request" in error_str:
-            self.safe_emit(self.log_signal, f"⚠️ Конфликт: бот {self.bot_username} уже запущен в другом месте")
             return True
         elif any(x in error_str for x in ["ssl", "certificate", "handshake", "bad gateway", "connection", "timeout"]):
-            await self.bot_manager.check_connection()
-            return False
+            await self.check_bot_connection(None)
         return False
     async def bot_worker(self, *args):
         bot = None
@@ -263,7 +258,7 @@ class AutoReplyAiogramWorker(QObject):
     stats_signal = pyqtSignal(int, int)
     error_signal = pyqtSignal(str)
     progress_signal = pyqtSignal(int, str)
-    def __init__(self, tokens, running_flag: list, proxy=None, text=None, min_interval=1, max_interval=5, react_to_start=True, react_to_messages=True, parent=None):
+    def __init__(self, tokens, running_flag: list, proxy=None, text=None, min_interval=1, max_interval=5, reply_to_all=False, parent=None):
         super().__init__(parent)
         self.tokens = tokens
         self.running_flag = running_flag[0]
@@ -271,8 +266,7 @@ class AutoReplyAiogramWorker(QObject):
         self.text = text
         self.min_interval = min_interval
         self.max_interval = max_interval
-        self.react_to_start = react_to_start
-        self.react_to_messages = react_to_messages
+        self.reply_to_all = reply_to_all
         self.mutex = QMutex()
         self._is_stopping = False
         self.thread_manager = ThreadManager(self)
@@ -309,8 +303,7 @@ class AutoReplyAiogramWorker(QObject):
                 text=self.text,
                 min_delay=self.min_interval,
                 max_delay=self.max_interval,
-                react_to_start=self.react_to_start,
-                react_to_messages=self.react_to_messages,
+                reply_to_all=self.reply_to_all,
                 parent=None
             )
             thread.log_signal.connect(self.log_signal.emit)
@@ -380,6 +373,7 @@ class BotWindow(QWidget):
     def __init__(self, parent=None, *args):
         super().__init__(parent, *args)
         self.main_window = parent
+        self._error_log_path = None
         if hasattr(self.main_window, 'config_changed'):
             self.setWindowTitle("Управление ботами")
             self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -415,12 +409,9 @@ class BotWindow(QWidget):
         delay_layout.addWidget(QLabel("сек"))
         delay_layout.addStretch()
         left_layout.addLayout(delay_layout)
-        self.react_to_start_checkbox = QCheckBox("Реагировать на /start")
-        self.react_to_start_checkbox.setChecked(True)
-        left_layout.addWidget(self.react_to_start_checkbox)
-        self.react_to_messages_checkbox = QCheckBox("Реагировать на сообщения")
-        self.react_to_messages_checkbox.setChecked(False)
-        left_layout.addWidget(self.react_to_messages_checkbox)
+        self.reply_to_all_checkbox = QCheckBox("Отвечать на все сообщения (общий флаг)")
+        self.reply_to_all_checkbox.setChecked(True)
+        left_layout.addWidget(self.reply_to_all_checkbox)
         button_layout = QHBoxLayout()
         self.start_button = QPushButton("▶ Запустить")
         self.start_button.clicked.connect(self.start_process)
@@ -560,9 +551,8 @@ class BotWindow(QWidget):
             self.progress_widget.update_progress(50, "Инициализация ботов...")
             self.auto_reply_thread = AutoReplyAiogramWorker(
                 self.selected_tokens, self.running_flag, proxy,
-                self.text_content, min_interval or 1, max_interval or 5,
-                react_to_start=self.react_to_start_checkbox.isChecked(),
-                react_to_messages=self.react_to_messages_checkbox.isChecked()
+                self.text_content, min_interval or 1, max_interval or 4,
+                reply_to_all=self.reply_to_all_checkbox.isChecked()
             )
             self.auto_reply_thread.log_signal.connect(self.log_message)
             self.auto_reply_thread.error_signal.connect(self.handle_thread_error)
@@ -582,7 +572,7 @@ class BotWindow(QWidget):
     def handle_thread_error(self, error_message, *args):
         self.log_message(f"Ошибка: {error_message}")
         try:
-            ErrorReportDialog.send_error_report(None, error_text=error_message)
+            ErrorReportDialog.send_error_report(self, error_text=error_message, *args)
             msg_label = QLabel(f"Произошла ошибка: {error_message}")
             msg_label.setWordWrap(True)
             QTimer.singleShot(100, lambda: self.log_message("Отчет об ошибке отправлен"))

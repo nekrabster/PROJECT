@@ -50,7 +50,17 @@ jobs:
             --include-package=certifi ^
             --include-package=pandas ^
             --include-package=telethon ^
-            --include-package-data=certifi ^
+            --include-package=aiogram ^
+            --include-package=aiofiles ^
+            --include-package=packaging ^
+            --include-package=PySocks ^
+            --include-package=Pillow ^
+            --include-package=faker ^
+            --include-package=aiohttp_socks ^
+            --include-package=qasync ^
+            --include-package=phonenumbers ^
+            --include-package=aiosmtplib ^
+            --include-package=psutil ^
             --include-data-dir=icons=icons ^
             --include-data-files=requirements.txt=requirements.txt ^
             --enable-plugin=pyqt6 ^

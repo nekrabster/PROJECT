@@ -51,7 +51,6 @@ jobs:
             --include-package=pandas ^
             --include-package=telethon ^
             --include-data-dir=icons=icons ^
-            --include-data-dir=certifi=certifi ^
             --include-data-files=requirements.txt=requirements.txt ^
             --enable-plugin=pyqt6 ^
             --jobs=4 ^

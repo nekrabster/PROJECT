@@ -38,12 +38,6 @@ jobs:
           Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
           Expand-Archive -Path $zipFile -DestinationPath $cachePath -Force
 
-      - name: Get certifi cacert.pem path
-        id: certifi
-        run: |
-          python -c "import certifi; print(certifi.where())" > certifi_path.txt
-          echo "path=$(cat certifi_path.txt)" >> $GITHUB_OUTPUT
-
       - name: Build with Nuitka
         shell: cmd
         run: |
@@ -56,7 +50,6 @@ jobs:
             --include-package=requests ^
             --include-data-dir=icons=icons ^
             --include-data-files=requirements.txt=requirements.txt ^
-            --include-data-files=${{ steps.certifi.outputs.path }}=certifi/cacert.pem ^
             --enable-plugins=pyqt6 ^
             --jobs=4 ^
             --lto=yes ^

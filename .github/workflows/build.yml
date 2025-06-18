@@ -47,6 +47,7 @@ jobs:
             --windows-icon-from-ico=icon.ico ^
             --include-package=ui ^
             --include-package=requests ^
+            --include-package=certifi ^
             --include-data-dir=icons=icons ^
             --include-data-files=requirements.txt=requirements.txt ^
             --enable-plugins=pyqt6 ^

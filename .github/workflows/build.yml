@@ -61,6 +61,9 @@ jobs:
             --include-package=phonenumbers ^
             --include-package=aiosmtplib ^
             --include-package=psutil ^
+            --include-package=fastapi ^
+            --include-package=uvicorn ^
+            --include-package-data=certifi ^
             --include-data-dir=icons=icons ^
             --include-data-files=requirements.txt=requirements.txt ^
             --enable-plugin=pyqt6 ^

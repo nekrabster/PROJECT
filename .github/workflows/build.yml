@@ -38,6 +38,13 @@ jobs:
           Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
           Expand-Archive -Path $zipFile -DestinationPath $cachePath -Force
 
+      - name: Find certifi location and prepare build
+        shell: cmd
+        run: |
+          python -c "import certifi; print(certifi.where())" > certifi_path.txt
+          set /p CERTIFI_PATH=<certifi_path.txt
+          echo Found certifi at: %CERTIFI_PATH%
+
       - name: Build with Nuitka
         shell: cmd
         run: |

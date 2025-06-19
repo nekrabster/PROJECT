@@ -28,18 +28,18 @@ jobs:
         shell: cmd
         run: |
           python -m nuitka ^
-            main.py ^
-            --standalone ^
             --onefile ^
             --output-filename=AViator.exe ^
             --windows-icon-from-ico=icon.ico ^
-            --include-data-dir=icons=icons ^
             --include-package=ui ^
-            --remove-output ^
-            --lto=yes ^
+            --include-package=certifi ^
+            --include-data-files=certifi/cacert.pem=certifi/cacert.pem ^
+            --include-data-dir=icons=icons ^
             --jobs=4 ^
-            --cache-dir=.nuitka-cache
-
+            --lto=yes ^
+            --remove-output ^
+            main.py
+  
       - name: 📤 Upload artifact
         uses: actions/upload-artifact@v4
         with:

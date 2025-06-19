@@ -1,5 +1,5 @@
 import os, asyncio, random, string
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QMutex, QTime
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QTime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTextEdit, QFileDialog,
     QCheckBox, QListWidget, QHBoxLayout,
@@ -9,29 +9,19 @@ from aiogram import Bot
 from ui.progress import ProgressWidget
 from ui.thread_base import ThreadStopMixin, BaseThread
 from ui.bots_win import BotTokenWindow
-from ui.appchuy import AiogramBotConnection, AiogramErrorHandler
+from ui.appchuy import AiogramBotConnection, AiogramErrorHandler, AiogramErrorType
+
 class BotWorker(BaseThread):
-    log_signal = pyqtSignal(str)
-    progress_signal = pyqtSignal(int, str)
     def __init__(self, token, user_ids, message, bot_name, delay_range: tuple = (0.1, 0.3), *args, **kwargs):
         super().__init__(session_file=token, parent=kwargs.get('parent', None))
         self.token = token
         self.user_ids = user_ids
         self.message = message
         self.bot_name = bot_name
-        self.delay_range = tuple(delay_range) if not isinstance(delay_range, tuple) else delay_range
-        self._running = True
-        self.processed_count = 0
-        self.max_reconnect_attempts = 3
-        self.reconnect_delay = 5
-        self.connection_error = False
-        self.mutex = QMutex()
+        self.delay_range = tuple(delay_range)
         self.bot_manager = AiogramBotConnection(token)
         self.bot_manager.log_signal.connect(self.log_signal.emit)
         self.bot_manager.error_signal.connect(lambda t, e: self.log_signal.emit(f"{t}: {e.message}"))
-    def stop(self, *args, **kwargs):
-        self._running = False
-        super().stop()
     async def process(self, *args, **kwargs):
         try:
             bot = await self.bot_manager.connect()
@@ -39,48 +29,37 @@ class BotWorker(BaseThread):
             total = len(self.user_ids)
             rate_limit = 10
             min_interval = 0.2
-            lock = asyncio.Lock()
             queue = asyncio.Queue()
-            async def reconnect_bot():
-                return await self.bot_manager.reconnect()
-            async def check_connection():
-                return await self.bot_manager.check_connection()
-            if not await check_connection():
-                self._running = False
+            if not await self.bot_manager.check_connection():
                 await self.bot_manager.disconnect()
                 return
             for user_id in self.user_ids:
                 await queue.put(user_id)
             async def worker():
-                while self._running and not queue.empty():
+                while not queue.empty():
                     user_id = await queue.get()
-                    if not self._running:
-                        break
-                    if not await check_connection():
-                        self._running = False
+                    if not await self.bot_manager.check_connection():
                         break
                     random_text = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
                     try:
                         await bot.send_message(user_id, self.message or random_text)
-                        async with lock:
-                            sent_counter['sent'] += 1
-                            self.processed_count += 1
-                            progress = int((self.processed_count / total) * 100)
-                            self.emit_progress(progress, f"Отправка сообщений ботом {self.bot_name}: {self.processed_count}/{total}")
-                            self.emit_log(f"PROGRESS::{self.bot_name}::{self.processed_count}::{len(self.user_ids)}")
+                        sent_counter['sent'] += 1
+                        progress = int((sent_counter['sent'] / total) * 100)
+                        self.emit_progress(progress, f"Отправка сообщений ботом {self.bot_name}: {sent_counter['sent']}/{total}")
+                        self.emit_log(f"PROGRESS::{self.bot_name}::{sent_counter['sent']}::{total}")
                     except Exception as e:
                         err = AiogramErrorHandler.classify_error(e, user_id=user_id, username=self.bot_name)
                         msg = AiogramErrorHandler.format_error_message(self.token, err)
                         self.emit_log(f"{msg}")
-                        self.processed_count += 1
-                        progress = int((self.processed_count / total) * 100)
-                        self.emit_progress(progress, f"Отправка сообщений ботом {self.bot_name}: {self.processed_count}/{total}")
-                        self.emit_log(f"PROGRESS::{self.bot_name}::{self.processed_count}::{len(self.user_ids)}")
+                        if err.type in [AiogramErrorType.CONNECTION, AiogramErrorType.SSL_ERROR, AiogramErrorType.BAD_GATEWAY]:
+                            await self.bot_manager.check_connection()
+                        progress = int((sent_counter['sent'] / total) * 100)
+                        self.emit_progress(progress, f"Отправка сообщений ботом {self.bot_name}: {sent_counter['sent']}/{total}")
+                        self.emit_log(f"PROGRESS::{self.bot_name}::{sent_counter['sent']}::{total}")
                     await asyncio.sleep(min_interval)
                     queue.task_done()
             workers = [asyncio.create_task(worker()) for _ in range(rate_limit)]
             await queue.join()
-            self._running = False
             for w in workers:
                 w.cancel()
             await self.bot_manager.disconnect()
@@ -89,12 +68,12 @@ class BotWorker(BaseThread):
             self.emit_log(f"{self.bot_name}: завершено, всего: {sent}, ошибок: {failed}")
         except Exception as e:
             self.emit_log(f"❌ Бот {self.bot_name}: критическая ошибка: {e}")
-            self._running = False
             try:
                 await self.bot_manager.disconnect()
             except Exception:
                 pass
             self.emit_log(f"{self.bot_name}: завершено с ошибкой")
+
 class RassWindow(QWidget, ThreadStopMixin):
     def __init__(self, session_folder, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -113,7 +92,7 @@ class RassWindow(QWidget, ThreadStopMixin):
         left_layout.addLayout(load_layout)
         auto_layout = QHBoxLayout()
         self.auto_send_checkbox = QCheckBox("⏰ Авторассылка")
-        auto_layout.addWidget(self.auto_send_checkbox)        
+        auto_layout.addWidget(self.auto_send_checkbox)
         time_layout = QHBoxLayout()
         time_layout.addWidget(QLabel("Время:"))
         self.time_edit = QTimeEdit()
@@ -173,7 +152,6 @@ class RassWindow(QWidget, ThreadStopMixin):
         main_layout.addLayout(right_layout, 1)
         self.tokens = {}
         self.users = {}
-        self.workers = []
         self.total_users = 0
         self.total_processed = 0
         self.selected_tokens = []
@@ -183,11 +161,11 @@ class RassWindow(QWidget, ThreadStopMixin):
         self.timer.start(100)
         self.auto_send_timer = QTimer(self)
         self.auto_send_timer.timeout.connect(self.check_auto_send)
-        self.auto_send_timer.start(30 * 1000)        
+        self.auto_send_timer.start(30 * 1000)
         self.last_auto_send_date = None
         self.is_broadcasting = False
         self.report_shown = False
-    def on_bots_win_tokens_updated(self, tokens):
+    def on_bots_win_tokens_updated(self, tokens, *args):
         self.selected_tokens = tokens
         self.tokens = {t: self.bot_token_window.token_usernames.get(t, t) for t in tokens}
     def on_bots_win_files_updated(self, files):
@@ -208,7 +186,7 @@ class RassWindow(QWidget, ThreadStopMixin):
                 self.progress_widget.update_progress(progress, f"Общий прогресс: {self.total_processed}/{self.total_users}")
         else:
             self.log_output.append(message)
-    async def fetch_usernames_for_tokens(self, tokens):
+    async def fetch_usernames_for_tokens(self, tokens, *args):
         for token in tokens:
             if token in self.token_usernames:
                 continue
@@ -220,7 +198,7 @@ class RassWindow(QWidget, ThreadStopMixin):
                 await bot.session.close()
             except Exception as e:
                 self.token_usernames[token] = token[:10]
-    def load_users_from_folder(self, folder):
+    def load_users_from_folder(self, folder, *args):
         if not folder:
             return False
         self.users.clear()
@@ -259,7 +237,6 @@ class RassWindow(QWidget, ThreadStopMixin):
                 self.log_output.append("Загрузка.")
             else:
                 loop.run_until_complete(self.fetch_usernames_for_tokens(tokens_to_fetch))
-
         if found_any:
             self.log_output.append("✅ Папка с пользователями загружена успешно.")
             return True
@@ -272,7 +249,7 @@ class RassWindow(QWidget, ThreadStopMixin):
             return
         self.load_users_from_folder(folder)
         self.session_folder = folder
-    def check_auto_send(self):
+    def check_auto_send(self, *args):
         if not self.auto_send_checkbox.isChecked():
             return
         if self.is_broadcasting:
@@ -298,10 +275,10 @@ class RassWindow(QWidget, ThreadStopMixin):
             return
         if not self.selected_tokens:
             self.log_output.append("⛔ Выберите хотя бы одного бота для рассылки")
-            return            
+            return
         if not self.users:
             self.log_output.append("⛔ Загрузите список пользователей")
-            return            
+            return
         message_text = self.message_edit.toPlainText().strip()
         if not message_text and not auto:
             self.log_output.append("⛔ Введите текст сообщения для рассылки")
@@ -332,11 +309,11 @@ class RassWindow(QWidget, ThreadStopMixin):
             self.total_users += num_to_send
             self.stats_list.addItem(f"{username}: обработано 0/{len(user_ids)}")
             thread = BotWorker(
-                token, 
-                user_ids, 
-                message_text, 
-                username, 
-                delay_range, 
+                token,
+                user_ids,
+                message_text,
+                username,
+                delay_range,
                 parent=self
             )
             thread.log_signal.connect(self.update_log_output)
@@ -349,7 +326,7 @@ class RassWindow(QWidget, ThreadStopMixin):
         for thread in threads:
             self.thread_manager.start_thread(thread)
         if self.total_users > 0:
-            self.progress_widget.update_progress(0, f"Начало рассылки: 0/{self.total_users}")     
+            self.progress_widget.update_progress(0, f"Начало рассылки: 0/{self.total_users}")
         self.is_broadcasting = True
     def stop_all(self, *args):
         self.stop_all_operations()
@@ -357,10 +334,7 @@ class RassWindow(QWidget, ThreadStopMixin):
         self.progress_widget.update_progress(100, "Процесс остановлен")
         self.is_broadcasting = False
     def process_tasks(self, *args):
-        for worker in self.workers:
-            if worker.isRunning():
-                worker.wait(10)
-        if self.is_broadcasting and all(not w.isRunning() for w in self.workers):
+        if self.is_broadcasting and self.thread_manager.is_all_finished():
             self.is_broadcasting = False
     def update_progress(self, value: int, status_text: str, *args, **kwargs):
         self.progress_widget.progress_bar.setValue(value)

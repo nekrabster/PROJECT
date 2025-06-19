@@ -57,7 +57,7 @@ jobs:
             --include-module=aiofiles ^
             --include-module=packaging ^
             --include-module=socks ^
-            --include-module=Pillow ^
+            --include-module=PIL ^
             --include-module=faker ^
             --include-module=aiohttp_socks ^
             --include-module=qasync ^

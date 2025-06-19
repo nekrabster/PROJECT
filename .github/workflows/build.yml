@@ -42,7 +42,7 @@ jobs:
           Copy-Item -Path "${{ steps.find_certifi.outputs.certifi_pem }}" -Destination "certifi.pem"
           echo "certifi_local=certifi.pem" >> $env:GITHUB_OUTPUT
 
-      - name: 🔍 Find python313.dll automatically
+      - name: 🔍 Find python312.dll automatically
         id: find_dll
         shell: pwsh
         run: |

@@ -113,6 +113,7 @@ jobs:
             --include-module=ui.decorators ^
             --include-module=ui.filya ^
             --include-package-data=certifi ^
+            --include-data-file=$(python -m certifi)=certifi\cacert.pem
             --include-module=email.mime.text ^
             --include-module=email.mime.base ^
             --include-module=email.mime.multipart ^

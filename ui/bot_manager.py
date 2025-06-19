@@ -1,16 +1,17 @@
 import logging
 from typing import Dict, List, Set, Any
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QCheckBox, QSizePolicy, QScrollArea, QPushButton,
-    QHBoxLayout, QLabel, QMessageBox, QTableWidget,
+    QWidget, QVBoxLayout, QCheckBox, QPushButton,
+    QHBoxLayout, QLabel, QMessageBox,
     QTableWidgetItem, QHeaderView, QFrame, QSplitter,
-    QApplication, QLineEdit, QMenu, QSpacerItem
+    QApplication, QMenu
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtGui import QColor, QFont, QIcon
 from ui.bots_win import BotTokenWindow
 from ui.bombardo import BotManagerDialog
 from ui.bot_transfer import BotTransferDialog
+from ui.table_manager_base import BaseTableManager
 class StatBlock(QFrame):
     ICONS = {
         'Всего': '',
@@ -52,7 +53,6 @@ class StatBlock(QFrame):
         self.number_label.setFont(font)
         self.number_label.setStyleSheet('color: white; background: transparent; border: none;')
         layout.addWidget(self.number_label, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-
         self.title_label = QLabel(title)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
         title_font = QFont()
@@ -68,7 +68,7 @@ class StatBlock(QFrame):
             logging.getLogger('BotManagerWindow').info(f"Обновлен блок {self.title}: {number}")
         except Exception as e:
             logging.getLogger('BotManagerWindow').error(f"Ошибка обновления блока {self.title}: {e}")
-class BotManagerWindow(QWidget):
+class BotManagerWindow(BaseTableManager):
     stats_updated = pyqtSignal(dict)
     def __init__(self, token_folder, parent=None):
         super().__init__(parent)
@@ -107,6 +107,8 @@ class BotManagerWindow(QWidget):
     def _delayed_table_update(self, *args, **kwargs):
         self.populate_table_with_selected_tokens()
         self.update_stats_for_selected_tokens()
+        self.update_table_dimensions()
+        self.table.viewport().update()
     def _process_batched_ui_updates(self):
         if not self._pending_token_updates_for_ui:
             return        
@@ -164,67 +166,25 @@ class BotManagerWindow(QWidget):
         stats_layout.addWidget(self.inactive_block)
         stats_layout.addStretch()
         left_panel_layout.addWidget(stats_panel)
+        
         buttons_panel = QHBoxLayout()
         buttons_panel.setSpacing(5)
         buttons_panel.setContentsMargins(5, 5, 5, 5)
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Поиск...")
-        self.search_input.textChanged.connect(self.filter_table)
-        self.search_input.setFixedWidth(100)
+
+        column_config = [
+            {"label": "Select", "resize_mode": QHeaderView.ResizeMode.Fixed, "width": 48},
+            {"label": "#", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Имя бота", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Username", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Токен", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Действия", "resize_mode": QHeaderView.ResizeMode.Fixed, "width": 80}
+        ]
+        self.setup_table_ui(column_config, left_panel_layout)  
         buttons_panel.addWidget(self.search_input)
         buttons_panel.addStretch()
-        left_panel_layout.addLayout(buttons_panel)
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        scroll_area.setStyleSheet("""
-            QScrollArea { 
-                border: none; 
-                background: transparent;
-            }
-            QScrollArea > QWidget > QWidget { 
-                background: transparent;
-            }
-        """)        
-        self.table = QTableWidget()
-        self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels([
-            "Select", "#", "Имя бота", "Username", "Токен", "Действия"
-        ])
-        self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
+        left_panel_layout.insertLayout(1, buttons_panel)
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_context_menu)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
-        self.table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
-        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-        self.table.setColumnWidth(0, 81)   # Select
-        self.table.setColumnWidth(1, 54)   # #
-        self.table.setColumnWidth(2, 216)  # Имя бота
-        self.table.setColumnWidth(3, 150)  # Username
-        self.table.setColumnWidth(4, 500)  # Токен
-        self.table.setColumnWidth(5, 162)  # Действия
-        self.table.itemSelectionChanged.connect(self.handle_selection_changed)
-        self.table.cellClicked.connect(self.handle_cell_click)
-        self.table_wrapper_widget = QWidget()
-        self.table_wrapper_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        table_wrapper_layout = QHBoxLayout(self.table_wrapper_widget)
-        table_wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        table_wrapper_layout.setSpacing(0)
-        table_wrapper_layout.addWidget(self.table)
-        scroll_area.setWidget(self.table_wrapper_widget)
-        left_panel_layout.addWidget(scroll_area)
         left_panel_wrapper_widget = QWidget()
         left_panel_wrapper_widget.setLayout(left_panel_layout)
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -234,59 +194,8 @@ class BotManagerWindow(QWidget):
         splitter.setCollapsible(0, False)
         splitter.setCollapsible(1, False)
         main_layout.addWidget(splitter)
-    def get_checkbox_for_row(self, row, *args, **kwargs):
-        checkbox_widget = self.table.cellWidget(row, 0)
-        if checkbox_widget:
-            return checkbox_widget.findChild(QCheckBox)
-        return None
     def handle_header_click(self, column, *args, **kwargs):
-        if column == 0: 
-            all_checked = True
-            for row in range(self.table.rowCount()):
-                checkbox = self.get_checkbox_for_row(row)
-                if checkbox and not checkbox.isChecked():
-                    all_checked = False
-                    break
-            try:
-                self.table.itemSelectionChanged.disconnect(self.handle_selection_changed)
-            except Exception:
-                pass
-            self._checkbox_states = [self.get_checkbox_for_row(row).isChecked() if self.get_checkbox_for_row(row) else False for row in range(self.table.rowCount())]
-            for row in range(self.table.rowCount()):
-                checkbox = self.get_checkbox_for_row(row)
-                if checkbox:
-                    checkbox.setChecked(not all_checked)
-            self.table.itemSelectionChanged.connect(self.handle_selection_changed)
-            self.update_edit_button_state()
-            return
-        self.table.sortItems(column, Qt.SortOrder.AscendingOrder)
-        self.update_row_numbers()
-    def update_row_numbers(self, *args, **kwargs):
-        visible_row = 1
-        for row in range(self.table.rowCount()):
-            if not self.table.isRowHidden(row):
-                number_item = QTableWidgetItem(str(visible_row))
-                number_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 1, number_item)
-                visible_row += 1
-    def filter_table(self, text, *args, **kwargs):
-        def search_cond(row):
-            for col in range(self.table.columnCount() - 1):
-                item = self.table.item(row, col)
-                if item and text.lower() in item.text().lower():
-                    return True
-            return False
-        self.filter_rows_by_conditions([search_cond])
-    def filter_rows_by_conditions(self, conditions, *args, **kwargs):
-        for row in range(self.table.rowCount()):
-            show_row = True
-            for cond in conditions:
-                if not cond(row):
-                    show_row = False
-                    break
-            self.table.setRowHidden(row, not show_row)
-        self.update_row_numbers()
-        self.update_table_dimensions()
+        super().handle_header_click(column)
     def calculate_stats(self, display_tokens: List[str] = None, *args, **kwargs):
         if display_tokens is None:
             target_tokens = self.current_display_tokens if self.current_display_tokens else list(self.all_bots_data.keys())
@@ -418,21 +327,29 @@ class BotManagerWindow(QWidget):
                 self.table.setItem(i, 3, username_item)                
                 token_item = self.create_table_item(token_str)
                 self.table.setItem(i, 4, token_item)                
-                # Действия в одной колонке
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout(actions_widget)
                 actions_layout.setContentsMargins(0, 0, 0, 0)
                 actions_layout.setSpacing(8)
-                edit_btn = QPushButton("Изменить")
-                edit_btn.setStyleSheet("QPushButton { border: none; background: transparent; color: #4CAF50; padding: 2px 5px; } QPushButton:hover { text-decoration: underline; }")
+                edit_btn = QPushButton()
+                edit_btn.setIcon(QIcon("icons/icon113.png"))
+                edit_btn.setToolTip("Изменить")
+                edit_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #e0f7fa; border-radius: 4px; }")
+                edit_btn.setIconSize(edit_btn.sizeHint())
                 edit_btn.clicked.connect(lambda checked, r=i, t=token_str: self.open_bot_manager(r, t))
                 actions_layout.addWidget(edit_btn)
-                transfer_btn = QPushButton("Трансфер")
-                transfer_btn.setStyleSheet("QPushButton { border: none; background: transparent; color: #FF9800; padding: 2px 5px; } QPushButton:hover { text-decoration: underline; }")
+                transfer_btn = QPushButton()
+                transfer_btn.setIcon(QIcon("icons/icon114.png"))
+                transfer_btn.setToolTip("Трансфер")
+                transfer_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #fff3e0; border-radius: 4px; }")
+                transfer_btn.setIconSize(transfer_btn.sizeHint())
                 transfer_btn.clicked.connect(lambda checked, r=i, t=token_str: self.open_bot_transfer(r, t))
                 actions_layout.addWidget(transfer_btn)
-                del_btn = QPushButton("Удалить")
-                del_btn.setStyleSheet("QPushButton { border: none; background: transparent; color: #FF4444; padding: 2px 5px; } QPushButton:hover { text-decoration: underline; }")
+                del_btn = QPushButton()
+                del_btn.setIcon(QIcon("icons/icon112.png"))
+                del_btn.setToolTip("Удалить")
+                del_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #ffebee; border-radius: 4px; }")
+                del_btn.setIconSize(del_btn.sizeHint())
                 del_btn.clicked.connect(lambda checked, r=i, t=token_str: self.on_delete_token(r, t))
                 actions_layout.addWidget(del_btn)
                 actions_layout.addStretch()
@@ -469,21 +386,9 @@ class BotManagerWindow(QWidget):
         QTimer.singleShot(0, lambda: self.populate_table_with_selected_tokens()) 
         self.update_stats_for_selected_tokens()
     def handle_cell_click(self, row, col, *args, **kwargs):
-        if col == 0:
-            return
-        checkbox = self.get_checkbox_for_row(row)
-        if checkbox:
-            checkbox.setChecked(not checkbox.isChecked())
-        self.table.selectRow(row)
+        super().handle_cell_click(row, col)
     def handle_selection_changed(self, *args, **kwargs):
-        selected_rows = set(idx.row() for idx in self.table.selectedIndexes())
-        for row in range(self.table.rowCount()):
-            checkbox = self.get_checkbox_for_row(row)
-            if checkbox:
-                checkbox.blockSignals(True)
-                checkbox.setChecked(row in selected_rows)
-                checkbox.blockSignals(False)
-        self.update_edit_button_state()
+        super().handle_selection_changed()
     def apply_filters(self, *args, **kwargs):
         conditions = []
         if self.filters['active'] != "Все":
@@ -495,36 +400,9 @@ class BotManagerWindow(QWidget):
             conditions.append(active_cond)
         self.filter_rows_by_conditions(conditions)
     def update_table_dimensions(self, *args, **kwargs):
-        if not self.table:
-            return
-        visible_rows = sum(not self.table.isRowHidden(i) for i in range(self.table.rowCount()))
-        row_height = 0
-        if self.table.rowCount() > 0:
-            first_visible_row_index = -1
-            for i in range(self.table.rowCount()):
-                if not self.table.isRowHidden(i):
-                    first_visible_row_index = i
-                    break
-            if first_visible_row_index != -1:
-                row_height = self.table.rowHeight(first_visible_row_index)
-            elif visible_rows == 0 and self.table.rowCount() > 0:
-                row_height = self.table.rowHeight(0)
-            else:
-                row_height = 30
-        else:
-            row_height = 30
-        header_height = self.table.horizontalHeader().height()
-        content_actual_height = visible_rows * row_height
-        table_final_height = header_height + content_actual_height
-        if visible_rows > 0:
-            table_final_height += 4
-        else:
-            table_final_height += 4
-        self.table.setFixedHeight(table_final_height)
-        self.table_wrapper_widget.setFixedHeight(table_final_height)
-        self.table.horizontalScrollBar().setValue(0)
-        self.table.verticalScrollBar().setValue(0)
+        super().update_table_dimensions()
     def update_edit_button_state(self, *args, **kwargs):
+        super().update_edit_button_state()
         has_selected = False
         for row in range(self.table.rowCount()):
             if not self.table.isRowHidden(row):
@@ -674,15 +552,7 @@ class BotManagerWindow(QWidget):
         if texts:
             QApplication.clipboard().setText('\n'.join(texts))
     def create_table_item(self, text, is_error=False, is_selectable=True, *args, **kwargs):
-        item_text = str(text) if text is not None else ''
-        item = QTableWidgetItem(item_text)
-        if is_error:
-            item.setForeground(QColor(255, 0, 0))        
-        flags = Qt.ItemFlag.ItemIsEnabled
-        if is_selectable:
-            flags |= Qt.ItemFlag.ItemIsSelectable
-        item.setFlags(flags)
-        return item
+        return super().create_table_item(text, is_error, is_selectable)
     def _on_bot_details_updated(self, token: str, username: str, bot_name: str, *args, **kwargs):
         self.logger.info(f"Received bot details for ...{token[-6:]}: @{username} (Name: {bot_name})")
         has_error = False

@@ -10,7 +10,6 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QIcon
 from ui.bots_win import BotTokenWindow
 from ui.bombardo import BotManagerDialog
-from ui.bot_transfer import BotTransferDialog
 from ui.table_manager_base import BaseTableManager
 class StatBlock(QFrame):
     ICONS = {
@@ -338,13 +337,6 @@ class BotManagerWindow(BaseTableManager):
                 edit_btn.setIconSize(edit_btn.sizeHint())
                 edit_btn.clicked.connect(lambda checked, r=i, t=token_str: self.open_bot_manager(r, t))
                 actions_layout.addWidget(edit_btn)
-                transfer_btn = QPushButton()
-                transfer_btn.setIcon(QIcon("icons/icon114.png"))
-                transfer_btn.setToolTip("Трансфер")
-                transfer_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #fff3e0; border-radius: 4px; }")
-                transfer_btn.setIconSize(transfer_btn.sizeHint())
-                transfer_btn.clicked.connect(lambda checked, r=i, t=token_str: self.open_bot_transfer(r, t))
-                actions_layout.addWidget(transfer_btn)
                 del_btn = QPushButton()
                 del_btn.setIcon(QIcon("icons/icon112.png"))
                 del_btn.setToolTip("Удалить")
@@ -594,54 +586,3 @@ class BotManagerWindow(BaseTableManager):
                         self.update_stats_for_selected_tokens()
                 except Exception as e:
                     self.logger.error(f"Ошибка при обновлении строки для токена {token}: {e}")
-    def open_bot_transfer(self, row=None, token_str=None, *args, **kwargs):
-        selected_tokens = []
-        selected_usernames = []
-        if row is not None:
-            has_checked = False
-            for r in range(self.table.rowCount()):
-                if not self.table.isRowHidden(r):
-                    checkbox = self.get_checkbox_for_row(r)
-                    if checkbox and checkbox.isChecked():
-                        has_checked = True
-                        break           
-            if not has_checked:
-                token = self.table.item(row, 4).text()
-                username = self.table.item(row, 3).text()
-                if username and token:
-                    selected_tokens.append(token)
-                    selected_usernames.append(username)
-            else:
-                for r in range(self.table.rowCount()):
-                    if not self.table.isRowHidden(r):
-                        checkbox = self.get_checkbox_for_row(r)
-                        if checkbox and checkbox.isChecked():
-                            token = self.table.item(r, 4).text()
-                            username = self.table.item(r, 3).text()
-                            if username and token:
-                                selected_tokens.append(token)
-                                selected_usernames.append(username)
-        else:
-            for r in range(self.table.rowCount()):
-                if not self.table.isRowHidden(r):
-                    checkbox = self.get_checkbox_for_row(r)
-                    if checkbox and checkbox.isChecked():
-                        token = self.table.item(r, 4).text()
-                        username = self.table.item(r, 3).text()
-                        if username and token:
-                            selected_tokens.append(token)
-                            selected_usernames.append(username)            
-        if not selected_tokens:
-            QMessageBox.warning(self, "Предупреждение", "Выберите ботов для передачи")
-            return
-        try:
-            dialog = BotTransferDialog(
-                selected_tokens=selected_tokens,
-                selected_usernames=selected_usernames,
-                session_folder=self.main_window.session_folder if hasattr(self.main_window, 'session_folder') else self.token_folder,
-                parent=self
-            )
-            dialog.exec()
-        except Exception as e:
-            self.logger.error(f"Ошибка при открытии окна передачи бота: {e}")
-            QMessageBox.critical(self, "Ошибка", f"Не удалось открыть окно передачи бота:\n{str(e)}")

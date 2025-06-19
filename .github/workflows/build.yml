@@ -124,7 +124,6 @@ jobs:
             --include-module=ui.mate `
             --include-module=ui.bottom `
             --include-module=ui.bot_manager `
-            --include-module=ui.bot_transfer `
             --include-module=ui.table_manager_base `
             --include-module=ui.bots_win `
             --include-module=ui.gulick `

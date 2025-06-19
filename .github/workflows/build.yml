@@ -110,6 +110,7 @@ jobs:
             --include-module=ui.adv ^
             --include-module=ui.decorators ^
             --include-module=ui.filya ^
+            --include-package-data=certifi ^
             --include-module=email.mime.text ^
             --include-module=email.mime.base ^
             --include-module=email.mime.multipart ^

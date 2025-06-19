@@ -1,6 +1,5 @@
 import os
 import base64
-import certifi
 import requests
 import datetime
 class ErrorReportDialog:
@@ -32,12 +31,7 @@ class ErrorReportDialog:
                 return
             time_info = f"Время возникновения ошибки: {error_time.strftime('%d.%m.%Y %H:%M:%S')}"
             log_text = f"{time_info}\n\n{log_text}"
-
-            kwargs = {"data": {"error": log_text}}
-            try:
-                kwargs["verify"] = certifi.where()
-            except Exception:
-                pass
+            kwargs = {"data": {"error": log_text}, "verify": True}  # Используем системные сертификаты
             response = requests.post('https://update.smm-aviator.com/errors.php', **kwargs)
             if response.status_code == 200:
                 print("Отчет успешно отправлен.")

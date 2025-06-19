@@ -37,12 +37,6 @@ jobs:
                      Select-Object -First 1 -ExpandProperty FullName
           echo "dll-path=$dllPath" >> $env:GITHUB_OUTPUT
 
-      - name: 🧹 Remove all .py and .pyc from ui/ (жёстко)
-        shell: pwsh
-        run: |
-          Get-ChildItem "ui" -Recurse -Include *.py,*.pyc -Force |
-            Remove-Item -Force
-
       - name: 🛠 Build .exe with Nuitka
         shell: cmd
         run: |
@@ -122,6 +116,12 @@ jobs:
             --include-module=email.mime.base ^
             --include-module=email.mime.multipart ^
             main.py
+
+      - name: 🧹 Remove all .py and .pyc from ui/ (жёстко)
+        shell: pwsh
+        run: |
+          Get-ChildItem "ui" -Recurse -Include *.py,*.pyc -Force |
+            Remove-Item -Force
             
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4

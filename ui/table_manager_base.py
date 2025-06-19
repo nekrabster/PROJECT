@@ -40,6 +40,7 @@ class BaseTableManager(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.itemSelectionChanged.connect(self.handle_selection_changed)
         self.table.cellClicked.connect(self.handle_cell_click)
+        self.table.setAlternatingRowColors(True)
         header = self.table.horizontalHeader()
         for i, config in enumerate(column_config):
             header.setSectionResizeMode(i, config.get('resize_mode', QHeaderView.ResizeMode.Interactive))

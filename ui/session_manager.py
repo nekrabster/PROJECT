@@ -5,14 +5,14 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox,
     QFileDialog, QMessageBox, QToolButton, QFrame, QInputDialog,
-    QDialog, QListWidget, QListWidgetItem, QScrollArea,
-    QLineEdit, QSizePolicy, QSplitter
+    QDialog, QListWidget, QListWidgetItem, QScrollArea, QSplitter
 )
 from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap
 from ui.session_win import SessionWindow
 from ui.sim_manager import SimManagerWindow
 from ui.loader import load_config, load_proxy
+from ui.table_manager_base import BaseTableManager
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
@@ -353,7 +353,7 @@ class BooleanFilterDialog(QDialog):
             if item.checkState() == Qt.CheckState.Checked:
                 return self.list_widget.itemWidget(item).findChild(QLabel).text()
         return "Все"
-class SessionManagerWindow(QWidget):
+class SessionManagerWindow(BaseTableManager):
     stats_updated = pyqtSignal(dict)
     def __init__(self, session_folder, parent=None):
         super().__init__(parent)
@@ -381,35 +381,7 @@ class SessionManagerWindow(QWidget):
         super().resizeEvent(event)
         self.resize_timer.start(100)
     def update_table_dimensions(self, *args, **kwargs):
-        if not self.table:
-            return
-        visible_rows = sum(not self.table.isRowHidden(i) for i in range(self.table.rowCount()))
-        row_height = 0
-        if self.table.rowCount() > 0:
-            first_visible_row_index = -1
-            for i in range(self.table.rowCount()):
-                if not self.table.isRowHidden(i):
-                    first_visible_row_index = i
-                    break
-            if first_visible_row_index != -1:
-                row_height = self.table.rowHeight(first_visible_row_index)
-            elif visible_rows == 0 and self.table.rowCount() > 0:
-                row_height = self.table.rowHeight(0)
-            else:
-                row_height = 30
-        else:
-            row_height = 30
-        header_height = self.table.horizontalHeader().height()
-        content_actual_height = visible_rows * row_height
-        table_final_height = header_height + content_actual_height
-        if visible_rows > 0:
-            table_final_height += 4
-        else:
-            table_final_height += 4
-        self.table.setFixedHeight(table_final_height)
-        self.table_wrapper_widget.setFixedHeight(table_final_height)
-        self.table.horizontalScrollBar().setValue(0)
-        self.table.verticalScrollBar().setValue(0)
+        super().update_table_dimensions()
     def setup_ui(self, *args):
         self.session_window = SessionWindow(self.session_folder, parent=self)
         self.session_window.setStyleSheet("""
@@ -460,72 +432,25 @@ class SessionManagerWindow(QWidget):
         self.move_sessions_btn.clicked.connect(self.move_selected_sessions)
         buttons_panel.addWidget(self.create_folder_btn)
         buttons_panel.addWidget(self.move_sessions_btn)
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Поиск...")
-        self.search_input.textChanged.connect(self.filter_table)
-        self.search_input.setFixedWidth(100)
-        buttons_panel.addWidget(self.search_input)        
-        buttons_panel.addStretch()    
-        left_panel_layout.addLayout(buttons_panel)
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        scroll_area.setStyleSheet("""
-            QScrollArea { 
-                border: none; 
-                background: transparent;
-            }
-            QScrollArea > QWidget > QWidget { 
-                background: transparent;
-            }
-        """)
         
-        self.table = QTableWidget()
-        self.table.setColumnCount(9)
-        self.table.setHorizontalHeaderLabels([
-            "Select", "#", "Номер", "Гео", "Спамблок", "Окончание спама", "Имя / Фамилия", "Премиум", "Изменить"
-        ])
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.itemSelectionChanged.connect(self.handle_selection_changed)
-        self.table.cellClicked.connect(self.handle_cell_click)        
-        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table_wrapper_widget = QWidget()
-        self.table_wrapper_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)        
-        table_wrapper_layout = QHBoxLayout(self.table_wrapper_widget)
-        table_wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        table_wrapper_layout.setSpacing(0)
-        table_wrapper_layout.addWidget(self.table)
-        scroll_area.setWidget(self.table_wrapper_widget)
-        left_panel_layout.addWidget(scroll_area)
-        self.table.verticalHeader().setVisible(False)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(6, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(7, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(8, QHeaderView.ResizeMode.Fixed)
-        self.table.setColumnWidth(0, 81)   # Select
-        self.table.setColumnWidth(1, 54)   # #
-        self.table.setColumnWidth(2, 216)  # Номер
-        self.table.setColumnWidth(3, 108)  # Гео
-        self.table.setColumnWidth(4, 135)  # Спамблок
-        self.table.setColumnWidth(5, 162)  # Окончание спама
-        self.table.setColumnWidth(6, 162)  # Имя / Фамилия
-        self.table.setColumnWidth(7, 135)  # Премиум
-        self.table.setColumnWidth(8, 162)  # Изменить        
-        for col in [3, 4, 6]:
-            header_item = self.table.horizontalHeaderItem(col)
-            if header_item:
-                header_item.setText(header_item.text() + " ▼")
-        self.table.horizontalHeader().sectionClicked.connect(self.handle_header_click)
+        column_config = [
+            {"label": "Select", "resize_mode": QHeaderView.ResizeMode.Fixed, "width": 48},
+            {"label": "#", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Номер", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Гео", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Спамблок", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Окончание спама", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Имя / Фамилия", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Премиум", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Изменить", "resize_mode": QHeaderView.ResizeMode.Fixed, "width": 80}
+        ]
+        
+        self.setup_table_ui(column_config, left_panel_layout)
+        
+        buttons_panel.addWidget(self.search_input)
+        buttons_panel.addStretch()    
+        left_panel_layout.insertLayout(1, buttons_panel)
+
         left_panel_wrapper_widget = QWidget()
         left_panel_wrapper_widget.setLayout(left_panel_layout)
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -536,25 +461,9 @@ class SessionManagerWindow(QWidget):
         splitter.setCollapsible(1, False)
         main_layout.addWidget(splitter)
     def get_checkbox_for_row(self, row):
-        checkbox_widget = self.table.cellWidget(row, 0)
-        if checkbox_widget:
-            return checkbox_widget.findChild(QCheckBox)
-        return None
+        return super().get_checkbox_for_row(row)
     def handle_header_click(self, column, *args):
-        if column == 0: 
-            all_checked = True
-            for row in range(self.table.rowCount()):
-                checkbox = self.get_checkbox_for_row(row)
-                if checkbox and not checkbox.isChecked():
-                    all_checked = False
-                    break
-            for row in range(self.table.rowCount()):
-                checkbox = self.get_checkbox_for_row(row)
-                if checkbox:
-                    checkbox.setChecked(not all_checked)
-            self.update_edit_button_state()
-            return
-        if column == 3:  
+        if column == 3:  # Фильтр по гео
             geo_counts = {}
             for row in range(self.table.rowCount()):
                 cell_widget = self.table.cellWidget(row, 3)
@@ -583,7 +492,7 @@ class SessionManagerWindow(QWidget):
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 self.filters['geo'] = dialog.get_selected_items()
                 self.apply_filters()
-        elif column == 4:
+        elif column == 4: # Фильтр по спамблоку
             if self.filters['spamblock'] == "Все":
                 self.filters['spamblock'] = "Да"
             elif self.filters['spamblock'] == "Да":
@@ -597,14 +506,14 @@ class SessionManagerWindow(QWidget):
                     base_text += f" ({self.filters['spamblock']})"
                 header_item.setText(base_text + " ▼")
             self.apply_filters()        
-        elif column == 6:
+        elif column == 7: # Фильтр по премиуму
             if self.filters['premium'] == "Все":
                 self.filters['premium'] = "Да"
             elif self.filters['premium'] == "Да":
                 self.filters['premium'] = "Нет"
             else:
                 self.filters['premium'] = "Все"
-            header_item = self.table.horizontalHeaderItem(6)
+            header_item = self.table.horizontalHeaderItem(7)
             if header_item:
                 base_text = "Премиум"
                 if self.filters['premium'] != "Все":
@@ -612,8 +521,7 @@ class SessionManagerWindow(QWidget):
                 header_item.setText(base_text + " ▼") 
             self.apply_filters()
         else:
-            self.table.sortItems(column, Qt.SortOrder.AscendingOrder)
-            self.update_row_numbers()
+            super().handle_header_click(column)
     def get_country_from_phone(self, phone, *args):
         try:
             phone = ''.join(c for c in phone if c.isdigit() or c == '+')
@@ -690,15 +598,7 @@ class SessionManagerWindow(QWidget):
     def get_country_code_from_flag(self, country_code, *args):
         return country_code
     def filter_rows_by_conditions(self, conditions, *args, **kwargs):
-        for row in range(self.table.rowCount()):
-            show_row = True
-            for cond in conditions:
-                if not cond(row):
-                    show_row = False
-                    break
-            self.table.setRowHidden(row, not show_row)
-        self.update_row_numbers()
-        self.update_table_dimensions()
+        super().filter_rows_by_conditions(conditions)
     def apply_filters(self, *args):
         conditions = []
         if self.filters['geo']:
@@ -722,21 +622,27 @@ class SessionManagerWindow(QWidget):
             conditions.append(spamblock_cond)
         if self.filters['premium'] != "Все":
             def premium_cond(row):
-                premium_item = self.table.item(row, 6)
+                premium_item = self.table.item(row, 7)
                 if premium_item:
                     value = "Да" if self.filters['premium'] == "Да" else "Нет"
                     return premium_item.text() == value
                 return False
             conditions.append(premium_cond)
+        
+        search_text = self.search_input.text().lower()
+        if search_text:
+            def search_cond(row):
+                for col in range(self.table.columnCount()):
+                    if col == 8: continue
+                    item = self.table.item(row, col)
+                    if item and search_text in item.text().lower():
+                        return True
+                return False
+            conditions.append(search_cond)
+            
         self.filter_rows_by_conditions(conditions)
     def update_row_numbers(self, *args):
-        visible_row = 1
-        for row in range(self.table.rowCount()):
-            if not self.table.isRowHidden(row):
-                number_item = QTableWidgetItem(str(visible_row))
-                number_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 1, number_item)
-                visible_row += 1
+        super().update_row_numbers()
     def on_folder_changed(self, folders):
         self.load_sessions()
         self.update_stats()
@@ -870,18 +776,11 @@ class SessionManagerWindow(QWidget):
                 premium_item.setData(Qt.ItemDataRole.UserRole, session['is_premium'])
                 premium_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(i, 7, premium_item)
-                edit_btn = QPushButton("Изменить")
-                edit_btn.setStyleSheet("""
-                    QPushButton {
-                        border: none;
-                        background: transparent;
-                        color: #4CAF50;
-                        padding: 2px 5px;
-                    }
-                    QPushButton:hover {
-                        text-decoration: underline;
-                    }
-                """)
+                edit_btn = QPushButton()
+                edit_btn.setIcon(QIcon("icons/icon113.png"))
+                edit_btn.setToolTip("Изменить")
+                edit_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #e0f7fa; border-radius: 4px; }")
+                edit_btn.setIconSize(edit_btn.sizeHint())
                 edit_btn.clicked.connect(lambda checked, row=i: self.open_sim_manager(row))
                 self.table.setCellWidget(i, 8, edit_btn)
                 self.logger.debug(f"Добавлена строка {i + 1} для сессии {session['phone']}")
@@ -903,13 +802,7 @@ class SessionManagerWindow(QWidget):
         if hasattr(self, 'move_sessions_btn'):
             self.move_sessions_btn.setEnabled(has_selected)
     def filter_table(self, text, *args, **kwargs):
-        def search_cond(row):
-            for col in range(self.table.columnCount() - 1):
-                item = self.table.item(row, col)
-                if item and text.lower() in item.text().lower():
-                    return True
-            return False
-        self.filter_rows_by_conditions([search_cond])
+        self.apply_filters()
     def toggle_all_sessions(self, state, *args, **kwargs):
         self.select_all.blockSignals(True)
         for row in range(self.table.rowCount()):
@@ -1108,21 +1001,9 @@ class SessionManagerWindow(QWidget):
             self.use_proxy_checkbox.setChecked(use_proxy)
         self.proxy = load_proxy(config) if config else None
     def handle_cell_click(self, row, col, *args):
-        if col == 0:
-            return
-        checkbox = self.get_checkbox_for_row(row)
-        if checkbox:
-            checkbox.setChecked(not checkbox.isChecked())
-        self.table.selectRow(row)
+        super().handle_cell_click(row, col)
     def handle_selection_changed(self, *args):
-        selected_rows = set(idx.row() for idx in self.table.selectedIndexes())
-        for row in range(self.table.rowCount()):
-            checkbox = self.get_checkbox_for_row(row)
-            if checkbox:
-                checkbox.blockSignals(True)
-                checkbox.setChecked(row in selected_rows)
-                checkbox.blockSignals(False)
-        self.update_edit_button_state()
+        super().handle_selection_changed()
     def closeEvent(self, event, *args, **kwargs):
         self.logger.info("Закрытие окна SessionManagerWindow...")
         self._is_running = False

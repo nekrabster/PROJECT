@@ -16,7 +16,7 @@ jobs:
       - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13.5'
+          python-version: '3.12'
 
       - name: 🧹 Clear pip cache
         run: |
@@ -27,7 +27,7 @@ jobs:
           pip install nuitka==2.7.7
           pip install requests aiogram aiofiles packaging PySocks Pillow faker aiohttp_socks qasync telethon PyQt6 phonenumbers aiosmtplib pandas psutil certifi
           
-      - name: 🔍 Find python313.dll automatically
+      - name: 🔍 Find python312.dll automatically
         id: find_dll
         shell: pwsh
         run: |

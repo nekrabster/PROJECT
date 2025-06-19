@@ -33,8 +33,9 @@ jobs:
         shell: pwsh
         run: |
           $path = python -c "import certifi; print(certifi.where())"
+          Write-Output "Найденный путь к certifi: $path"
           echo "certifi_pem=$path" >> $env:GITHUB_OUTPUT
-
+    
       - name: 🔍 Find python313.dll automatically
         id: find_dll
         shell: pwsh

@@ -1,60 +1,161 @@
-name: Build .exe with Nuitka (fast & secure, Clang)
+name: Build .exe with Nuitka
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     steps:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13 (для Nuitka 2.3.6+)
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.13'
-          cache: 'pip'
+
+      - name: 🧹 Clear pip cache
+        run: |
+          python -m pip cache purge
 
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install --upgrade --pre nuitka
+          pip install nuitka==2.3.6
 
-      - name: ⚙️ Install LLVM (clang-cl)
-        uses: egor-tensin/setup-clang@v1
-        with:
-          version: 17
-
-      - name: 🛠 Build with Nuitka (Clang + оптимизация)
+      - name: 🔍 Find python313.dll automatically
+        id: find_dll
         shell: pwsh
         run: |
-          $env:CC = "clang-cl"
-          python -m nuitka main.py `
-            --standalone `
-            --enable-plugin=pyqt6 `
-            --output-dir=dist `
-            --remove-output `
-            --no-pyi-file `
-            --lto=yes `
-            --clang `
-            --jobs=4 `
-            --windows-icon-from-ico=icon.ico `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
-            --output-filename=Soft-K.exe `
-            --include-package=ui `
-            --include-data-dir=icons=icons `
-            --include-data-dir=ui=ui `
-            --assume-yes-for-downloads
-            
+          $pythonRoot = "${{ env.pythonLocation }}"
+          $dllPath = Get-ChildItem -Path "$pythonRoot" -Recurse -Filter python313.dll |
+                     Select-Object -First 1 -ExpandProperty FullName
+          echo "dll-path=$dllPath" >> $env:GITHUB_OUTPUT
+
+      - name: 🧹 Remove all .py and .pyc from ui/ (жёстко)
+        shell: pwsh
+        run: |
+          Get-ChildItem "ui" -Recurse -Include *.py,*.pyc -Force |
+            Remove-Item -Force
+
+      - name: 🛠 Build .exe with Nuitka
+        shell: cmd
+        run: |
+          nuitka ^
+            --onefile ^
+            --nofollow-import-to=Cython ^
+            --windows-disable-console ^
+            --windows-icon-from-ico=icon.ico ^
+            --include-data-dir=icons=icons ^
+            --remove-output ^
+            --output-dir=dist ^
+            --include-module=requests ^
+            --include-module=aiofiles ^
+            --include-module=packaging ^
+            --include-module=PySocks ^
+            --include-module=Pillow ^
+            --include-module=faker ^
+            --include-module=aiohttp_socks ^
+            --include-module=qasync ^
+            --include-module=aiogram ^
+            --include-module=telethon ^
+            --include-module=telethon.sync ^
+            --include-module=phonenumbers ^
+            --include-module=aiosmtplib ^
+            --include-module=pandas ^
+            --include-module=psutil ^
+            --include-module=PyQt6.QtMultimedia ^
+            --include-module=PyQt6.QtMultimediaWidgets ^
+            --include-module=ui.rudich ^
+            --include-module=ui.bombardirocrocodilo ^
+            --include-module=ui.complas ^
+            --include-module=ui.kachok ^
+            --include-module=ui.subscribe ^
+            --include-module=ui.malining ^
+            --include-module=ui.malina ^
+            --include-module=ui.components ^
+            --include-module=ui.session ^
+            --include-module=ui.rass ^
+            --include-module=ui.check ^
+            --include-module=ui.newtoken ^
+            --include-module=ui.okak ^
+            --include-module=ui.informatika ^
+            --include-module=ui.bombardo ^
+            --include-module=ui.sim_manager ^
+            --include-module=ui.loader ^
+            --include-module=ui.search ^
+            --include-module=ui.session_manager ^
+            --include-module=ui.session_win ^
+            --include-module=ui.apphuy ^
+            --include-module=ui.appchuy ^
+            --include-module=ui.timer ^
+            --include-module=ui.progress ^
+            --include-module=ui.samit ^
+            --include-module=ui.proxy_utils ^
+            --include-module=ui.mail ^
+            --include-module=ui.instructions ^
+            --include-module=ui.subs ^
+            --include-module=ui.damkrat ^
+            --include-module=ui.theme ^
+            --include-module=ui.styles ^
+            --include-module=ui.top ^
+            --include-module=ui.side ^
+            --include-module=ui.thread_base ^
+            --include-module=ui.mate ^
+            --include-module=ui.bottom ^
+            --include-module=ui.bot_manager ^
+            --include-module=ui.bot_transfer ^
+            --include-module=ui.bots_win ^
+            --include-module=ui.gulick ^
+            --include-module=ui.integralypro ^
+            --include-module=ui.kms ^
+            --include-module=ui.integraly ^
+            --include-module=ui.codik ^
+            --include-module=ui.adv ^
+            --include-module=ui.decorators ^
+            --include-module=ui.filya ^
+            --include-module=email.mime.text ^
+            --include-module=email.mime.base ^
+            --include-module=email.mime.multipart ^
+            --include-binary="${{ steps.find_dll.outputs.dll-path }}" ^
+            main.py
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
-          path: dist/Soft-K.exe
+          path: dist\main.exe
           retention-days: 1
+
+  cleanup:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: 🧽 Delete old artifacts (older than 7 days)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const daysOld = 7;
+            const artifactName = "Soft-K.exe";
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const now = new Date();
+            for (const artifact of artifacts.data.artifacts) {
+              const createdAt = new Date(artifact.created_at);
+              const ageInDays = (now - createdAt) / (1000 * 60 * 60 * 24);
+              if (artifact.name === artifactName && ageInDays > daysOld) {
+                console.log(`Deleting artifact ${artifact.id} (${artifact.name}) — ${ageInDays.toFixed(1)} days old`);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+              }
+            }

@@ -1,9 +1,9 @@
+import certifi
 import os
-os.environ["QASYNC_QT_API"] = "pyqt6"
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()os.environ["QASYNC_QT_API"] = "pyqt6"
 import sys
 import asyncio
 from qasync import QEventLoop, QApplication
-import certifi
 import requests
 from ui.rudich import ActivationWindow
 try:

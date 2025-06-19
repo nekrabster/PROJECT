@@ -3,28 +3,32 @@ name: Build AViator.exe
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest
+
+    env:
+      NUITKA_DEPENDS_DOWNLOAD_ALWAYS: "1"
 
     steps:
-      - name: 📥 Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13.0
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13.0"
-          cache: "pip"
+          python-version: '3.12.10'
+          architecture: 'x64'
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install nuitka==2.7.7
+          pip install nuitka -r requirements.txt
 
-      - name: ⚙️ Build AViator.exe
+      - name: Build with Nuitka
         shell: cmd
         run: |
           python -m nuitka ^
@@ -32,16 +36,16 @@ jobs:
             --output-filename=AViator.exe ^
             --windows-icon-from-ico=icon.ico ^
             --include-package=ui ^
-            --include-package=certifi ^
-            --include-data-files=certifi/cacert.pem=certifi/cacert.pem ^
+            --include-package-data=certifi ^
             --include-data-dir=icons=icons ^
             --jobs=4 ^
             --lto=yes ^
             --remove-output ^
             main.py
-  
-      - name: 📤 Upload artifact
+
+      - name: Upload AViator.exe artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AViator.exe
+          name: AViator
           path: AViator.exe
+          include-hidden-files: true

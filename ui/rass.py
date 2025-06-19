@@ -1,5 +1,5 @@
 import os, asyncio, random, string
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QTime
+from PyQt6.QtCore import Qt, QTimer, QTime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTextEdit, QFileDialog,
     QCheckBox, QListWidget, QHBoxLayout,
@@ -10,7 +10,6 @@ from ui.progress import ProgressWidget
 from ui.thread_base import ThreadStopMixin, BaseThread
 from ui.bots_win import BotTokenWindow
 from ui.appchuy import AiogramBotConnection, AiogramErrorHandler, AiogramErrorType
-
 class BotWorker(BaseThread):
     def __init__(self, token, user_ids, message, bot_name, delay_range: tuple = (0.1, 0.3), *args, **kwargs):
         super().__init__(session_file=token, parent=kwargs.get('parent', None))
@@ -165,6 +164,7 @@ class RassWindow(QWidget, ThreadStopMixin):
         self.last_auto_send_date = None
         self.is_broadcasting = False
         self.report_shown = False
+        self.completed_threads = set()
     def on_bots_win_tokens_updated(self, tokens, *args):
         self.selected_tokens = tokens
         self.tokens = {t: self.bot_token_window.token_usernames.get(t, t) for t in tokens}
@@ -289,10 +289,11 @@ class RassWindow(QWidget, ThreadStopMixin):
         else:
             self.log_output.append("✅ Автоматическая рассылка начата...")
         self.stats_list.clear()
-        self.thread_manager.threads.clear()
+        self.thread_manager.stop_all_threads()
         self.total_users = 0
         self.total_processed = 0
         self.report_shown = False
+        self.completed_threads.clear()
         active_bots = len(self.selected_tokens)
         delay_range = (0.2, 0.4) if active_bots <= 3 else (0.4, 0.8)
         threads = []
@@ -340,8 +341,6 @@ class RassWindow(QWidget, ThreadStopMixin):
         self.progress_widget.progress_bar.setValue(value)
         self.progress_widget.status_label.setText(status_text)
     def _on_thread_finished(self, thread, *args, **kwargs):
-        if not hasattr(self, 'completed_threads'):
-            self.completed_threads = set()
         if thread.token in self.completed_threads:
             return
         self.completed_threads.add(thread.token)

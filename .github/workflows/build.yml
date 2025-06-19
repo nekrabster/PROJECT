@@ -105,7 +105,6 @@ jobs:
             --include-module=ui.bot_transfer ^
             --include-module=ui.bots_win ^
             --include-module=ui.gulick ^
-            --include-module=ui.integralypro ^
             --include-module=ui.kms ^
             --include-module=ui.integraly ^
             --include-module=ui.codik ^

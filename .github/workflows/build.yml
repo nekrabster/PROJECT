@@ -47,13 +47,13 @@ jobs:
         shell: cmd
         run: |
           nuitka ^
+            --standalone ^
             --onefile ^
-            --nofollow-import-to=Cython ^
+            --remove-output ^
+            --output-dir=dist ^
             --windows-disable-console ^
             --windows-icon-from-ico=icon.ico ^
             --include-data-dir=icons=icons ^
-            --remove-output ^
-            --output-dir=dist ^
             --include-module=requests ^
             --include-module=aiofiles ^
             --include-module=packaging ^
@@ -122,9 +122,8 @@ jobs:
             --include-module=email.mime.text ^
             --include-module=email.mime.base ^
             --include-module=email.mime.multipart ^
-            --include-binary="${{ steps.find_dll.outputs.dll-path }}" ^
             main.py
-
+            
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

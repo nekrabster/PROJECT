@@ -1,5 +1,4 @@
 requests
-certifi
 aiogram
 aiofiles
 packaging

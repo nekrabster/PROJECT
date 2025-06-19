@@ -16,10 +16,11 @@ class StyleManager:
                 '_textedit_fg': '#D0D3D4',
                 '_textedit_border': '#2980B9',
                 '_table_bg': '#23272e',
-                '_table_header_bg': '#2c313a',
+                '_table_header_bg': '#30343a',
                 '_table_header_fg': '#e0e0e0',
-                '_table_row_alt': '#262b33',
-                '_table_grid': '#393e46',
+                '_table_row_alt': '#23272e',
+                '_table_row_alt2': '#262a31',
+                '_table_grid': '#2e3238',
                 '_table_text': '#e0e0e0',
                 '_table_select_bg': '#3a7afe',
                 '_table_select_fg': '#ffffff',
@@ -46,10 +47,11 @@ class StyleManager:
                 '_textedit_fg': '#2C3E50',
                 '_textedit_border': '#B0B0B0',
                 '_table_bg': 'rgba(255,255,255,0.95)',
-                '_table_header_bg': '#f5f5f5',
+                '_table_header_bg': '#f3f5f7',
                 '_table_header_fg': '#222',
-                '_table_row_alt': '#f7f9fa',
-                '_table_grid': '#e0e0e0',
+                '_table_row_alt': '#f6f8fa',
+                '_table_row_alt2': '#fafdff',
+                '_table_grid': '#e3e6ea',
                 '_table_text': '#222',
                 '_table_select_bg': '#e3f0ff',
                 '_table_select_fg': '#222',
@@ -73,10 +75,14 @@ class StyleManager:
         QTabBar::tab {{ background: {colors['_btn_bg']}; color: {colors['_btn_fg']}; padding: 8px; border: 1px solid {colors['_inp_border']}; border-bottom: 1px solid {colors['_inp_border']}; }}
         QTabBar::tab:selected {{ background: {colors['bg']}; border-color: {colors['_inp_border']}; border-bottom: 2px solid {colors['_btn_hover']}; }}
         QTabBar::tab:hover {{ background: {colors['_btn_hover']}; }}
-        QTableWidget {{ background: {colors['_table_bg']}; alternate-background-color: {colors['_table_row_alt']}; gridline-color: {colors['_table_grid']}; color: {colors['_table_text']}; font-size: 14px; selection-background-color: {colors['_table_select_bg']}; selection-color: {colors['_table_select_fg']}; border-left: 1px solid {colors['_inp_border']}; border-right: 1px solid {colors['_inp_border']}; }}
-        QHeaderView::section {{ background: {colors['_table_header_bg']}; color: {colors['_table_header_fg']}; border: none; border-bottom: 2px solid {colors['_table_grid']}; font-weight: 600; font-size: 14px; padding: 6px 0px; border-radius: 0; }}
+        QTableWidget {{ background: {colors['_table_bg']}; alternate-background-color: {colors['_table_row_alt']}; gridline-color: {colors['_table_grid']}; color: {colors['_table_text']}; font-size: 14px; selection-background-color: {colors['_table_select_bg']}; selection-color: {colors['_table_select_fg']}; border: none; border-top-left-radius: 8px; border-top-right-radius: 8px; }}
         QTableWidget::item:selected {{ background: {colors['_table_select_bg']}; color: {colors['_table_select_fg']}; }}
         QTableWidget::item {{ border: none; padding: 4px 8px; }}
+        QTableWidget::item:alternate {{ background: {colors.get('_table_row_alt2', '#e9ecef')}; }}
+        QHeaderView {{ background-color: transparent; }}
+        QHeaderView::section {{ background: {colors['_table_header_bg']}; color: {colors['_table_header_fg']}; border: none; border-bottom: 2px solid {colors['_table_grid']}; font-weight: 600; font-size: 14px; padding: 6px 8px; }}
+        QHeaderView::section:first {{ border-top-left-radius: 8px; }}
+        QHeaderView::section:last {{ border-top-right-radius: 8px; }}
         QGroupBox {{ border: 1px solid {colors.get('_inp_border', '#CCCCCC')}; border-radius: 6px; margin-top: 20px; padding: 10px; background-color: transparent; }}
         QGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top left; padding: 0 5px 0 5px; left: 10px; color: {colors.get('_lbl_fg', '#333333')}; font-weight: bold; }}
         QProgressBar {{ border: none; border-radius: 8px; background: {colors['_progress_bg']}; height: 18px; text-align: center; color: {colors['_progress_fg']}; font-size: 14px; font-weight: 500; }}

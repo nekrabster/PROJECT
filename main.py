@@ -3,6 +3,8 @@ os.environ["QASYNC_QT_API"] = "pyqt6"
 import sys
 import asyncio
 from qasync import QEventLoop, QApplication
+import certifi
+import requests
 from ui.rudich import ActivationWindow
 try:
     from ui.kms import initialize_master_protection, critical_function

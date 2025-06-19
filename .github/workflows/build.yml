@@ -53,6 +53,11 @@ jobs:
           $dllPath = Get-ChildItem -Path "$pythonRoot" -Recurse -Filter python313.dll | Select-Object -First 1 -ExpandProperty FullName
           echo "dll-path=$dllPath" >> $env:GITHUB_OUTPUT
       
+      - name: 🧪 Set environment to non-debug
+        run: |
+          set DISTUTILS_USE_SDK=1
+          set _DEBUG=
+          
       - name: 🛠 Run PyInstaller to build .exe
         shell: cmd
         run: |

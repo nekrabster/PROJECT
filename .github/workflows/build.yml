@@ -33,9 +33,15 @@ jobs:
         shell: pwsh
         run: |
           $path = python -c "import certifi; print(certifi.where())"
-          Write-Output "Найденный путь к certifi: $path"
           echo "certifi_pem=$path" >> $env:GITHUB_OUTPUT
-    
+
+      - name: 📁 Скопировать certifi.pem в корень
+        id: copy_certifi
+        shell: pwsh
+        run: |
+          Copy-Item -Path "${{ steps.find_certifi.outputs.certifi_pem }}" -Destination "certifi.pem"
+          echo "certifi_local=certifi.pem" >> $env:GITHUB_OUTPUT
+
       - name: 🔍 Find python313.dll automatically
         id: find_dll
         shell: pwsh
@@ -44,6 +50,11 @@ jobs:
           $dllPath = Get-ChildItem -Path "$pythonRoot" -Recurse -Filter python313.dll |
                      Select-Object -First 1 -ExpandProperty FullName
           echo "dll-path=$dllPath" >> $env:GITHUB_OUTPUT
+
+      - name: 🧹 Remove old dist (на всякий случай)
+        shell: cmd
+        run: |
+          if exist dist rmdir /s /q dist
 
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
@@ -57,7 +68,7 @@ jobs:
             --windows-icon-from-ico=icon.ico `
             --assume-yes-for-downloads `
             --include-data-dir=icons=icons `
-            --include-data-file="${{ steps.find_certifi.outputs.certifi_pem }}"=certifi/cacert.pem `
+            --include-data-file=certifi.pem=certifi/cacert.pem `
             --include-module=requests `
             --include-module=aiofiles `
             --include-module=packaging `

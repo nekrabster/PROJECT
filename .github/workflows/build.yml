@@ -1,33 +1,45 @@
-name: Build AViator for Windows
+name: Build AViator
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
-  build-windows:
+  build:
     runs-on: windows-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install nuitka
-        if (Test-Path requirements.txt) { pip install -r requirements.txt }
-
-    - name: Build with Nuitka
-      run: |
-        python -m nuitka main.py --onefile --windows-disable-console --output-dir=dist --output-filename=AViator.exe --windows-icon-from-ico=icon.ico --include-data-dir=icons=icons --product-name="AViator" --file-version="2.3.6" --product-version="2.3.6" --company-name="AViator" --jobs=$env:NUMBER_OF_PROCESSORS --lto=yes --include-package=ui --plugin-enable=pyqt6
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: AViator-exe
-        path: dist/AViator.exe
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.13.0
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.0'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nuitka==2.* --upgrade
+      
+      - name: Build with Nuitka
+        run: |
+          python -m nuitka --standalone --follow-imports --include-data-dir=icons=icons --windows-icon-from-ico=icon.ico --windows-file-version=2.3.6 --windows-product-version=2.3.6 --windows-product-name=AViator --onefile --windows-disable-console --windows-company-name="" --output-filename=AViator.exe --include-package=ui --include-package-data=ui --assume-yes-for-downloads --jobs=4 --show-progress --enable-plugin=tk-inter --windows-uac-admin --include-module=ui.* --follow-import-to=ui main.py
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AViator
+          path: AViator.exe
+      
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: AViator.exe
+          name: AViator v${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

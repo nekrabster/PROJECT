@@ -16,39 +16,23 @@ jobs:
       - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13.1'
+          python-version: '3.11'
 
       - name: 🧹 Clear pip cache
         run: |
           python -m pip cache purge
-      - name: 📦 Install dependencies (жёстко)
+
+      - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install nuitka==2.7
           pip install requests aiogram aiofiles packaging PySocks Pillow faker aiohttp_socks qasync telethon PyQt6 phonenumbers aiosmtplib pandas psutil certifi
-      - name: 🔍 Найти путь к certifi.pem
-        id: find_certifi
-        shell: pwsh
-        run: |
-          $path = python -c "import certifi; print(certifi.where())"
-          echo "certifi_pem=$path" >> $env:GITHUB_OUTPUT
-      - name: 📁 Скопировать certifi.pem в папку certifi/
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path "certifi" -Force
-          Copy-Item -Path "${{ steps.find_certifi.outputs.certifi_pem }}" -Destination "certifi/cacert.pem" -Force
-      - name: 🔍 Find python313.dll automatically
-        id: find_dll
-        shell: pwsh
-        run: |
-          $pythonRoot = "${{ env.pythonLocation }}"
-          $dllPath = Get-ChildItem -Path "$pythonRoot" -Recurse -Filter python313.dll |
-                     Select-Object -First 1 -ExpandProperty FullName
-          echo "dll-path=$dllPath" >> $env:GITHUB_OUTPUT
+
       - name: 🧹 Remove old dist (на всякий случай)
         shell: cmd
         run: |
           if exist dist rmdir /s /q dist
+          
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         run: |
@@ -61,9 +45,9 @@ jobs:
             --windows-icon-from-ico=icon.ico `
             --assume-yes-for-downloads `
             --follow-imports `
+            --enable-plugin=pyqt6 `
+            --enable-plugin=data-files `
             --include-data-dir=icons=icons `
-            --include-data-file=certifi/cacert.pem=certifi/cacert.pem `
-            --include-package-data=certifi `
             --include-package=requests `
             --include-package=aiogram `
             --include-package=aiofiles `
@@ -79,7 +63,6 @@ jobs:
             --include-package=pandas `
             --include-package=psutil `
             --include-package=PyQt6 `
-            --enable-plugin=pyqt6 `
             --include-package=PyQt6.QtMultimedia `
             --include-package=PyQt6.QtMultimediaWidgets `
             --include-module=telethon.sync `
@@ -133,10 +116,10 @@ jobs:
             --include-module=email.mime.text `
             --include-module=email.mime.base `
             --include-module=email.mime.multipart `
-            --include-module=importlib.resources `
             --show-modules `
             --report=build-report.txt `
             main.py
+            
       - name: 🧹 Remove all .py and .pyc from ui/ (жёстко)
         shell: pwsh
         run: |

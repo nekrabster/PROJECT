@@ -83,6 +83,8 @@ class IntegrityChecker:
                     'timestamp': time.time()
                 }
     def check_module_integrity(self, module_name: str, *args,**kwargs) -> bool:
+        if IS_FROZEN:
+            return True
         if module_name not in self._module_hashes:
             return True
         stored_info = self._module_hashes[module_name]
@@ -137,6 +139,8 @@ class IntegrityChecker:
                     }
     def check_api_hooks(self, *args,**kwargs) -> List[str]:
         hooked_apis = []
+        if IS_FROZEN:
+            return hooked_apis
         for key, info in self._api_hooks.items():
             try:
                 buffer = (ctypes.c_byte * 16)()
@@ -157,6 +161,8 @@ class IntegrityChecker:
                 continue
         return hooked_apis
     def detect_code_caves(self, *args,**kwargs) -> bool:
+        if IS_FROZEN:
+            return False
         try:
             process_handle = windll.kernel32.GetCurrentProcess()
             address = 0x10000
@@ -202,6 +208,8 @@ class IntegrityChecker:
             pass
         return False
     def check_self_modification(self, *args,**kwargs) -> bool:
+        if IS_FROZEN:
+            return False
         try:
             main_module = sys.executable
             if os.path.exists(main_module):

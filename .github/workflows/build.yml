@@ -26,7 +26,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install nuitka==2.7
-          pip install certifi
           pip install requests aiogram aiofiles packaging PySocks Pillow faker aiohttp_socks qasync telethon PyQt6 phonenumbers aiosmtplib pandas psutil certifi
 
       - name: 🔍 Найти путь к certifi.pem
@@ -36,10 +35,15 @@ jobs:
           $path = python -c "import certifi; print(certifi.where())"
           echo "certifi_pem=$path" >> $env:GITHUB_OUTPUT
 
+      - name: 📁 Удалить и создать папку certifi (чтобы избежать мусора)
+        shell: pwsh
+        run: |
+          if (Test-Path "certifi") { Remove-Item -Recurse -Force "certifi" }
+          New-Item -ItemType Directory -Path "certifi"
+
       - name: 📁 Скопировать certifi.pem в папку certifi/
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path "certifi" -Force
           Copy-Item -Path "${{ steps.find_certifi.outputs.certifi_pem }}" -Destination "certifi/cacert.pem" -Force
 
       - name: 🔍 Find python313.dll automatically

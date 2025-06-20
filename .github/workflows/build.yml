@@ -75,7 +75,7 @@ jobs:
             --include-package=aiofiles `
             --include-package=packaging `
             --include-package=socks `
-            --include-package=Pil `
+            --include-package=PIL `
             --include-package=faker `
             --include-package=aiohttp_socks `
             --include-package=qasync `

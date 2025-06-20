@@ -1,5 +1,7 @@
 import os
+import ssl
 import base64
+import certifi
 import requests
 import datetime
 class ErrorReportDialog:
@@ -31,12 +33,13 @@ class ErrorReportDialog:
                 return
             time_info = f"Время возникновения ошибки: {error_time.strftime('%d.%m.%Y %H:%M:%S')}"
             log_text = f"{time_info}\n\n{log_text}"
-            kwargs = {"data": {"error": log_text}, "verify": True}  # Используем системные сертификаты
+            os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+            os.environ['CURL_CA_BUNDLE'] = certifi.where()
+            kwargs = {"data": {"error": log_text}}
             response = requests.post('https://update.smm-aviator.com/errors.php', **kwargs)
             if response.status_code == 200:
                 print("Отчет успешно отправлен.")
             else:
                 print("Не удалось отправить отчет. Попробуйте позже.")
-
         except Exception as ex:
             print("Не удалось отправить отчет. Попробуйте позже.")

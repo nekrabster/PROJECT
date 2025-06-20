@@ -106,7 +106,6 @@ jobs:
             --include-module=ui.bot_manager `
             --include-module=ui.table_manager_base `
             --include-module=ui.bots_win `
-            --include-module=ui.gulick `
             --include-module=email.mime.text `
             --include-module=email.mime.base `
             --include-module=email.mime.multipart `

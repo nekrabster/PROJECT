@@ -1,7 +1,3 @@
-from ui.kms import initialize_master_protection, is_protection_active
-
-if not is_protection_active():
-    initialize_master_protection()
 from PyQt6.QtGui import QColor
 from random import randint
 class ColorGenerator:

@@ -74,8 +74,8 @@ jobs:
             --include-package=aiogram `
             --include-package=aiofiles `
             --include-package=packaging `
-            --include-package=PySocks `
-            --include-package=Pillow `
+            --include-package=socks `
+            --include-package=Pil `
             --include-package=faker `
             --include-package=aiohttp_socks `
             --include-package=qasync `

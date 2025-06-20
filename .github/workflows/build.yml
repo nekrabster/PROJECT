@@ -66,7 +66,7 @@ jobs:
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
             --assume-yes-for-downloads `
-            --follow-imports
+            --follow-imports `
             --include-data-dir=icons=icons `
             --include-data-file=certifi/cacert.pem=certifi/cacert.pem `
             --include-package-data=certifi `

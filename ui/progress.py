@@ -1,6 +1,3 @@
-from ui.kms import initialize_master_protection, is_protection_active
-if not is_protection_active():
-    initialize_master_protection()
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QProgressBar, QLabel
 class ProgressWidget(QWidget):

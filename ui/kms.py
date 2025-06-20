@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import threading
 import random
@@ -12,6 +13,9 @@ from .integraly import initialize_integrity_protection, stop_integrity_protectio
 from .adv import initialize_advanced_obfuscation, create_fake_activity
 from .decorators import heavy_obfuscation
 from .filya import initialize_file_protection, stop_file_protection
+
+IS_FROZEN = getattr(sys, 'frozen', False)
+
 class MasterProtection:
     def __init__(self):
         self._protection_active = False
@@ -91,6 +95,8 @@ instance = {name.title().replace("_", "")}()
         self._protection_threads.append(thread)
     @heavy_obfuscation
     def _check_cpu_timing(self, *args,**kwargs) -> bool:
+        if IS_FROZEN:
+            return False
         try:
             iterations = 10000
             start_time = time.perf_counter()
@@ -114,6 +120,8 @@ instance = {name.title().replace("_", "")}()
             pass
         return False
     def _check_network_monitoring(self, *args,**kwargs) -> bool:
+        if IS_FROZEN:
+            return False
         try:
             import socket
             import subprocess
@@ -145,6 +153,8 @@ instance = {name.title().replace("_", "")}()
             pass
         return False
     def _check_file_monitoring(self, *args,**kwargs) -> bool:
+        if IS_FROZEN:
+            return False
         try:
             import tempfile
             import hashlib

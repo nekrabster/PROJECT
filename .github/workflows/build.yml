@@ -66,6 +66,7 @@ jobs:
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
             --assume-yes-for-downloads `
+            --follow-imports
             --include-data-dir=icons=icons `
             --include-data-file=certifi/cacert.pem=certifi/cacert.pem `
             --include-package-data=certifi `
@@ -84,6 +85,7 @@ jobs:
             --include-module=aiosmtplib `
             --include-module=pandas `
             --include-module=psutil `
+            --enable-plugin=pyqt6 `
             --include-module=PyQt6.QtMultimedia `
             --include-module=PyQt6.QtMultimediaWidgets `
             --include-module=ui.rudich `

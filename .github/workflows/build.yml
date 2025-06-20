@@ -35,14 +35,13 @@ jobs:
           $path = python -c "import certifi; print(certifi.where())"
           echo "certifi_pem=$path" >> $env:GITHUB_OUTPUT
 
-      - name: 📁 Скопировать certifi.pem в корень
-        id: copy_certifi
+      - name: 📁 Скопировать certifi.pem в папку certifi/
         shell: pwsh
         run: |
-          Copy-Item -Path "${{ steps.find_certifi.outputs.certifi_pem }}" -Destination "certifi.pem"
-          echo "certifi_local=certifi.pem" >> $env:GITHUB_OUTPUT
+          New-Item -ItemType Directory -Path "certifi" -Force
+          Copy-Item -Path "${{ steps.find_certifi.outputs.certifi_pem }}" -Destination "certifi/cacert.pem" -Force
 
-      - name: 🔍 Find python312.dll automatically
+      - name: 🔍 Find python313.dll automatically
         id: find_dll
         shell: pwsh
         run: |
@@ -68,7 +67,8 @@ jobs:
             --windows-icon-from-ico=icon.ico `
             --assume-yes-for-downloads `
             --include-data-dir=icons=icons `
-            --include-data-file=certifi.pem=certifi/cacert.pem `
+            --include-data-file=certifi/cacert.pem=certifi/cacert.pem `
+            --include-package-data=certifi `
             --include-module=requests `
             --include-module=aiofiles `
             --include-module=packaging `
@@ -133,21 +133,28 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.decorators `
             --include-module=ui.filya `
-            --include-package-data=certifi `
             --include-module=email.mime.text `
             --include-module=email.mime.base `
             --include-module=email.mime.multipart `
+            --show-modules `
+            --report=build-report.txt `
             main.py
 
       - name: 🧹 Remove all .py and .pyc from ui/ (жёстко)
         shell: pwsh
         run: |
-          Get-ChildItem "ui" -Recurse -Include *.py,*.pyc -Force |
-            Remove-Item -Force
+          Get-ChildItem "ui" -Recurse -Include *.py,*.pyc -Force | Remove-Item -Force
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist\Soft-K.exe
+          retention-days: 1
+
+      - name: ☁️ Upload Nuitka build report
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuitka-build-report
+          path: build-report.txt
           retention-days: 1

@@ -40,7 +40,6 @@ from ui.theme import ThemeManager
 from ui.styles import StyleManager
 from ui.top import TopBar
 from ui.side import SideBar
-from ui.kms import initialize_master_protection, is_protection_active
 from ui.bottom import BottomBar
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):

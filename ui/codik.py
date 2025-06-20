@@ -121,7 +121,7 @@ def check():
 def check():
     try:
         import psutil
-        debug_processes = ['lldb', 'gdb', 'python', 'pdb', 'debugpy', 'ollydbg', 'x64dbg', 'windbg', 'ida']
+        debug_processes = ['lldb', 'gdb', 'pdb', 'debugpy', 'ollydbg', 'x64dbg', 'windbg', 'ida']
         for proc in psutil.process_iter(['name']):
             if proc.info['name'] and proc.info['name'].lower() in debug_processes:
                 return True

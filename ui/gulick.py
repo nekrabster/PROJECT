@@ -66,6 +66,8 @@ class AntiDebugProtection:
             pass
         return False
     def check_timing_attack(self, *args,**kwargs):
+        if IS_FROZEN:
+            return False
         try:
             start_time = time.perf_counter()
             result = 0
@@ -82,6 +84,8 @@ class AntiDebugProtection:
     def check_virtual_machine(self, *args,**kwargs):
         return False
     def check_analysis_tools(self, *args,**kwargs):
+        if IS_FROZEN:
+            return False
         try:
             analysis_processes = ['ollydbg.exe', 'x64dbg.exe', 'x32dbg.exe', 'windbg.exe', 'ida.exe', 'ida64.exe', 'idaq.exe', 'idaq64.exe', 'idaw.exe', 'ghidra.exe', 'radare2.exe', 'r2.exe', 'hiew.exe', 'procmon.exe', 'procmon64.exe', 'apimonitor.exe', 'wireshark.exe', 'fiddler.exe', 'charles.exe', 'pe-bear.exe', 'lordpe.exe', 'pestudio.exe', 'hollowshunter.exe', 'hasherezade.exe']
             running_processes = [p.name().lower() for p in psutil.process_iter(['name'])]
@@ -93,6 +97,8 @@ class AntiDebugProtection:
             pass
         return False
     def check_sandbox_environment(self, *args,**kwargs):
+        if IS_FROZEN:
+            return False
         try:
             process_count = len(list(psutil.process_iter()))
             if process_count < 25:

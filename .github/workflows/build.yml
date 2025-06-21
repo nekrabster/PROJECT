@@ -2,54 +2,44 @@ name: Build .exe with Nuitka
 
 on:
   push:
-    branches:
-      - main
-
-env:
-  MAIN_ENTRY: main.py
+    branches: [main]
 
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 30
 
     steps:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
+
+      - name: 🧠 Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
 
       - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.13.1'
 
-      - name: 📥 Enable pip caching
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
       - name: 📦 Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --upgrade pip
           pip install nuitka==2.7
+          pip install -r requirements.txt
 
-      - name: 🔢 Log Python and Nuitka versions
-        run: |
-          python --version
-          python -m nuitka --version
-
-      - name: 🧹 Remove old dist (если есть)
+      - name: 🧹 Clean old dist/build
         shell: cmd
         run: |
           if exist dist rmdir /s /q dist
+          if exist build rmdir /s /q build
 
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         run: |
           nuitka `
+            main.py `
             --standalone `
             --onefile `
             --remove-output `
@@ -61,25 +51,23 @@ jobs:
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
             --include-data-dir=icons=icons `
-            --include-package=requests `
-            ... (все --include-module и --include-package как у тебя) ...
+            --include-package=ui `
             --show-modules `
-            --report=build-report.txt `
-            ${{ env.MAIN_ENTRY }}
+            --report=build-report.txt
 
-      - name: 🧹 Remove .py и .pyc из ui/ (для защиты)
+      - name: 🧹 Remove all .py and .pyc from ui/
         shell: pwsh
         run: |
           Get-ChildItem "ui" -Recurse -Include *.py,*.pyc -Force | Remove-Item -Force
 
-      - name: ☁️ Upload .exe as artifact
+      - name: ☁️ Upload .exe
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist\Soft-K.exe
           retention-days: 1
 
-      - name: ☁️ Upload Nuitka build report
+      - name: ☁️ Upload Nuitka report
         uses: actions/upload-artifact@v4
         with:
           name: nuitka-build-report

@@ -1,15 +1,12 @@
-name: Build Soft-K with Nuitka
+name: Build Windows Executable
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build-windows:
+  build:
     runs-on: windows-latest
 
     steps:
@@ -19,28 +16,36 @@ jobs:
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: "3.13"
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install nuitka==2.7.10 # Install the specific Nuitka version
+        pip install nuitka
 
     - name: Build with Nuitka
       run: |
-        nuitka ^
-          --standalone ^
-          --onefile ^
-          --output-filename=Soft-K.exe ^
-          --windows-icon-resources=icon.ico ^
-          --include-data-dir=icons=icons ^
-          --include-data-dir=ui=ui ^
-          --enable-plugin=pyside6,pyqt6,qasync,telethon,aiogram ^
+        python -m nuitka `
+          --onefile `
+          --windows-icon-from-ico=icon.ico `
+          --output-filename=Soft-K.exe `
+          --enable-plugin=pyqt6 `
+          --include-data-dir=ui=ui `
+          --include-data-dir=icons=icons `
+          --include-package=ui `
+          --include-package-data=telethon `
+          --include-package-data=aiogram `
+          --include-package-data=qasync `
+          --assume-yes-for-downloads `
+          --follow-imports `
           main.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Soft-K-Windows
-        path: Soft-K.exe
+        name: Soft-K-Executable
+        path: |
+          Soft-K.exe
+          icons/**
+          ui/**

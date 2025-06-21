@@ -20,22 +20,24 @@ class BotWorker(BaseThread):
         self.delay_range = tuple(delay_range)
         self.bot_manager = AiogramBotConnection(token)
         self.bot_manager.log_signal.connect(self.log_signal.emit)
-        self.bot_manager.error_signal.connect(lambda t, e: self.log_signal.emit(f"{t}: {e.message}"))
+        self.bot_manager.error_signal.connect(self.handle_error)
+    def handle_error(self, token, error):
+        self.log_signal.emit(f"{token}: {error.message}")
     async def process(self, *args, **kwargs):
         try:
             bot = await self.bot_manager.connect()
+            if not await self.bot_manager.check_connection():
+                await self.bot_manager.disconnect()
+                return
             sent_counter = {'sent': 0}
             total = len(self.user_ids)
             rate_limit = 10
             min_interval = 0.2
             queue = asyncio.Queue()
-            if not await self.bot_manager.check_connection():
-                await self.bot_manager.disconnect()
-                return
             for user_id in self.user_ids:
                 await queue.put(user_id)
             async def worker():
-                while not queue.empty():
+                while not queue.empty() and self.running:
                     user_id = await queue.get()
                     if not await self.bot_manager.check_connection():
                         break
@@ -72,7 +74,6 @@ class BotWorker(BaseThread):
             except Exception:
                 pass
             self.emit_log(f"{self.bot_name}: завершено с ошибкой")
-
 class RassWindow(QWidget, ThreadStopMixin):
     def __init__(self, session_folder, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -191,11 +192,12 @@ class RassWindow(QWidget, ThreadStopMixin):
             if token in self.token_usernames:
                 continue
             try:
-                bot = Bot(token=token)
+                conn = AiogramBotConnection(token)
+                bot = await conn.connect()
                 info = await bot.get_me()
                 username = info.username or token[:10]
                 self.token_usernames[token] = username
-                await bot.session.close()
+                await conn.disconnect()
             except Exception as e:
                 self.token_usernames[token] = token[:10]
     def load_users_from_folder(self, folder, *args):

@@ -56,7 +56,7 @@ jobs:
       - name: 🛠 Run PyInstaller to build .exe
         shell: cmd
         run: |
-          pyinstaller --clean --noconfirm --onefile --noconsole --name Soft-K --icon icon.ico ^
+          pyinstaller --clean --noconfirm --onefile --name Soft-K --icon icon.ico ^
           --hidden-import requests ^
           --hidden-import aiofiles ^
           --hidden-import packaging ^

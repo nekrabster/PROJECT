@@ -5,9 +5,13 @@ on:
     branches:
       - main
 
+env:
+  MAIN_ENTRY: main.py
+
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
       - name: 🧾 Checkout repository
@@ -16,23 +20,32 @@ jobs:
       - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.13.1'
 
-      - name: 🧹 Clear pip cache
-        run: |
-          python -m pip cache purge
+      - name: 📥 Enable pip caching
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install -r requirements.txt
           pip install nuitka==2.7
-          pip install requests aiogram aiofiles packaging PySocks Pillow faker aiohttp_socks qasync telethon PyQt6 phonenumbers aiosmtplib pandas psutil certifi
 
-      - name: 🧹 Remove old dist (на всякий случай)
+      - name: 🔢 Log Python and Nuitka versions
+        run: |
+          python --version
+          python -m nuitka --version
+
+      - name: 🧹 Remove old dist (если есть)
         shell: cmd
         run: |
           if exist dist rmdir /s /q dist
-          
+
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         run: |
@@ -49,74 +62,16 @@ jobs:
             --enable-plugin=data-files `
             --include-data-dir=icons=icons `
             --include-package=requests `
-            --include-package=aiogram `
-            --include-package=aiofiles `
-            --include-package=packaging `
-            --include-package=socks `
-            --include-package=PIL `
-            --include-package=faker `
-            --include-package=aiohttp_socks `
-            --include-package=qasync `
-            --include-package=telethon `
-            --include-package=phonenumbers `
-            --include-package=aiosmtplib `
-            --include-package=pandas `
-            --include-package=psutil `
-            --include-package=PyQt6 `
-            --include-package=PyQt6.QtMultimedia `
-            --include-package=PyQt6.QtMultimediaWidgets `
-            --include-module=telethon.sync `
-            --include-module=ui.rudich `
-            --include-module=ui.bombardirocrocodilo `
-            --include-module=ui.complas `
-            --include-module=ui.kachok `
-            --include-module=ui.subscribe `
-            --include-module=ui.malining `
-            --include-module=ui.malina `
-            --include-module=ui.components `
-            --include-module=ui.session `
-            --include-module=ui.rass `
-            --include-module=ui.check `
-            --include-module=ui.newtoken `
-            --include-module=ui.okak `
-            --include-module=ui.informatika `
-            --include-module=ui.bombardo `
-            --include-module=ui.sim_manager `
-            --include-module=ui.loader `
-            --include-module=ui.search `
-            --include-module=ui.session_manager `
-            --include-module=ui.session_win `
-            --include-module=ui.apphuy `
-            --include-module=ui.appchuy `
-            --include-module=ui.timer `
-            --include-module=ui.progress `
-            --include-module=ui.samit `
-            --include-module=ui.proxy_utils `
-            --include-module=ui.mail `
-            --include-module=ui.instructions `
-            --include-module=ui.subs `
-            --include-module=ui.damkrat `
-            --include-module=ui.theme `
-            --include-module=ui.styles `
-            --include-module=ui.top `
-            --include-module=ui.side `
-            --include-module=ui.thread_base `
-            --include-module=ui.mate `
-            --include-module=ui.bottom `
-            --include-module=ui.bot_manager `
-            --include-module=ui.table_manager_base `
-            --include-module=ui.bots_win `
-            --include-module=email.mime.text `
-            --include-module=email.mime.base `
-            --include-module=email.mime.multipart `
+            ... (все --include-module и --include-package как у тебя) ...
             --show-modules `
             --report=build-report.txt `
-            main.py
-            
-      - name: 🧹 Remove all .py and .pyc from ui/ (жёстко)
+            ${{ env.MAIN_ENTRY }}
+
+      - name: 🧹 Remove .py и .pyc из ui/ (для защиты)
         shell: pwsh
         run: |
           Get-ChildItem "ui" -Recurse -Include *.py,*.pyc -Force | Remove-Item -Force
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

@@ -1,51 +1,134 @@
-name: Build Windows Executable
+name: Build .exe
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.13"
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install nuitka
+      - name: 🧹 Clear pip cache
+        run: |
+          python -m pip cache purge
+      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install Cython setuptools pyinstaller
+      - name: ⚙️ Build Cython extensions (.pyd)
+        run: python setup.py build_ext --inplace
 
-    - name: Build with Nuitka
-      run: |
-        python -m nuitka `
-          --onefile `
-          --windows-icon-from-ico=icon.ico `
-          --output-filename=Soft-K.exe `
-          --enable-plugin=pyqt6 `
-          --include-data-dir=ui=ui `
-          --include-data-dir=icons=icons `
-          --include-package=ui `
-          --include-package-data=telethon `
-          --include-package-data=aiogram `
-          --include-package-data=qasync `
-          --assume-yes-for-downloads `
-          --follow-imports `
-          main.py
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Soft-K-Executable
-        path: |
-          Soft-K.exe
-          icons/**
-          ui/**
+      - name: 📁 Check search folder contents
+        shell: pwsh
+        run: |
+          Write-Host "Checking search folder contents:"
+          if (Test-Path "search") {
+              Get-ChildItem "search" -Recurse | ForEach-Object {
+                  Write-Host $_.FullName
+              }
+          } else {
+              Write-Host "Search folder not found!"
+          }
+      - name: 🧹 Remove all .py and .pyc from ui/ (жёстко)
+        shell: pwsh
+        run: |
+          Get-ChildItem "ui" -Recurse -Include *.py,*.pyc -Force | Remove-Item -Force
+      - name: 🔍 Find python313.dll automatically
+        id: find_dll
+        shell: pwsh
+        run: |
+          $pythonRoot = "${{ env.pythonLocation }}"
+          $dllPath = Get-ChildItem -Path "$pythonRoot" -Recurse -Filter python313.dll | Select-Object -First 1 -ExpandProperty FullName
+          echo "dll-path=$dllPath" >> $env:GITHUB_OUTPUT
+      
+      - name: 🛠 Run PyInstaller to build .exe
+        shell: cmd
+        run: |
+          pyinstaller --clean --noconfirm --onefile --noconsole --name Soft-K --icon icon.ico ^
+          --hidden-import requests ^
+          --hidden-import aiofiles ^
+          --hidden-import packaging ^
+          --hidden-import PySocks ^
+          --hidden-import Pillow ^
+          --hidden-import faker ^
+          --hidden-import aiohttp_socks ^
+          --hidden-import qasync ^
+          --hidden-import aiogram ^
+          --hidden-import telethon ^
+          --hidden-import telethon.sync ^
+          --hidden-import phonenumbers ^
+          --hidden-import aiosmtplib ^
+          --hidden-import pandas ^
+          --hidden-import psutil ^
+          --hidden-import PyQt6.QtMultimedia ^
+          --hidden-import PyQt6.QtMultimediaWidgets ^
+          --hidden-import ui.rudich ^
+          --hidden-import ui.bombardirocrocodilo ^
+          --hidden-import ui.complas ^
+          --hidden-import ui.kachok ^
+          --hidden-import ui.subscribe ^
+          --hidden-import ui.malining ^
+          --hidden-import ui.malina ^
+          --hidden-import ui.components ^
+          --hidden-import ui.session ^
+          --hidden-import ui.rass ^
+          --hidden-import ui.check ^
+          --hidden-import ui.newtoken ^
+          --hidden-import ui.okak ^
+          --hidden-import ui.informatika ^
+          --hidden-import ui.bombardo ^
+          --hidden-import ui.sim_manager ^
+          --hidden-import ui.loader ^
+          --hidden-import ui.search ^
+          --hidden-import ui.session_manager ^
+          --hidden-import ui.session_win ^
+          --hidden-import ui.apphuy ^
+          --hidden-import ui.appchuy ^
+          --hidden-import ui.timer ^
+          --hidden-import ui.progress ^
+          --hidden-import ui.samit ^
+          --hidden-import ui.proxy_utils ^
+          --hidden-import ui.mail ^
+          --hidden-import ui.instructions ^
+          --hidden-import ui.subs ^
+          --hidden-import ui.damkrat ^
+          --hidden-import ui.theme ^
+          --hidden-import ui.styles ^
+          --hidden-import ui.top ^
+          --hidden-import ui.side ^
+          --hidden-import ui.thread_base ^
+          --hidden-import ui.mate ^
+          --hidden-import ui.bottom ^
+          --hidden-import ui.bot_manager ^
+          --hidden-import ui.table_manager_base ^
+          --hidden-import ui.bots_win ^
+          --hidden-import ui.gulick ^
+          --hidden-import ui.kms ^
+          --hidden-import ui.integraly ^
+          --hidden-import ui.codik ^
+          --hidden-import ui.adv ^
+          --hidden-import ui.decorators ^
+          --hidden-import ui.filya ^
+          --hidden-import email.mime.text ^
+          --hidden-import email.mime.base ^
+          --hidden-import email.mime.multipart ^
+          --add-data "icons;icons" ^
+          --add-binary "${{ steps.find_dll.outputs.dll-path }};." main.py
+      - name: ☁️ Upload .exe as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Soft-K.exe
+          path: dist/Soft-K.exe
+          retention-days: 1

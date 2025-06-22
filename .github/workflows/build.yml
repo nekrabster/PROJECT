@@ -8,32 +8,32 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
-      - name: Checkout code
+      - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
+      - name: 🐍 Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
-      - name: Upgrade pip
+      - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
 
-      - name: Install requirements
+      - name: 📦 Install requirements
         run: pip install -r requirements.txt
 
-      - name: Install latest Nuitka
+      - name: 🌙 Install latest Nuitka
         run: pip install --upgrade nuitka
 
-      - name: Find certifi cacert.pem path
+      - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
-        shell: pwsh
+        shell: bash
         run: |
-          $path = python -c "import certifi; print(certifi.where())"
-          Write-Output "::set-output name=certifi_path::$path"
-      
-      - name: Build .exe with Nuitka
+          echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
+
+      - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         run: |
           nuitka `
@@ -52,14 +52,15 @@ jobs:
             --include-data-dir=icons=icons `
             --include-package=ui `
             --show-modules `
-            --report=build-report.txt  
-            - name: Upload artifact
-              uses: actions/upload-artifact@v4
-              with:
-                name: Soft-K-exe
-                path: Soft-K.exe
+            --report=build-report.txt
 
-      - name: Upload build logs
+      - name: ☁️ Upload .exe as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Soft-K.exe
+          path: dist/Soft-K.exe
+
+      - name: 📋 Upload build logs (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:

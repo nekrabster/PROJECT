@@ -38,7 +38,7 @@ jobs:
           nuitka `
             main.py `
             --standalone `
-            --onefile ` 
+            --onefile `
             --lto=yes `
             --windows-disable-console `
             --remove-output `

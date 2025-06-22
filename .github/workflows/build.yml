@@ -32,14 +32,15 @@ jobs:
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         run: |
           nuitka `
             main.py `
             --standalone `
-            --onefile `
+            --onefile ` 
+            --lto=yes `
+            --windows-disable-console `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
@@ -47,13 +48,13 @@ jobs:
             --assume-yes-for-downloads `
             --follow-imports `
             --enable-plugin=pyqt6 `
+            --enable-plugin=anti-bloat `
             --enable-plugin=data-files `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
             --include-package=ui `
             --show-modules `
             --report=build-report.txt
-
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

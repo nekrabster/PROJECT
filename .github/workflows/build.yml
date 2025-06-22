@@ -28,17 +28,24 @@ jobs:
 
       - name: Build with Nuitka
         run: |
-          nuitka ^
-            --standalone ^
-            --onefile ^
-            --windows-icon-from-ico=icon.ico ^
-            --output-filename=Soft-K.exe ^
-            --windows-force-icon ^
-            --enable-plugin=pyqt6 ^
-            --include-package=ui ^
-            --include-data-dir=icons=icons ^
-            main.py
-
+          nuitka `
+            main.py `
+            --standalone `
+            --onefile `
+            --remove-output `
+            --output-dir=dist `
+            --output-filename=Soft-K `
+            --windows-icon-from-ico=icon.ico `
+            --assume-yes-for-downloads `
+            --follow-imports `
+            --enable-plugin=pyqt6 `
+            --enable-plugin=data-files `
+            --enable-plugin=certifi `
+            --include-data-dir=icons=icons `
+            --include-package=ui `
+            --show-modules `
+            --report=build-report.txt
+  
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

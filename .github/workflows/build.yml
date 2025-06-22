@@ -1,36 +1,55 @@
-name: Build Soft-K.exe with Nuitka
+name: Build Windows EXE with Nuitka
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ main, master ]
 
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.13
-        uses: actions/setup-python@v4
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.13
+          python-version: '3.13'
 
-      - name: Upgrade pip and install nuitka + dependencies
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: pip install -r requirements.txt
+
+      - name: Install latest Nuitka
+        run: pip install --upgrade nuitka
+
+      - name: Build with Nuitka
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          pip install nuitka wheel setuptools
-          # Устанавливаем библиотеки из requirements, чтобы код был работоспособен в runtime
-          pip install -r requirements.txt
+          nuitka ^
+            --standalone ^
+            --onefile ^
+            --windows-icon-from-ico=icon.ico ^
+            --output-filename=Soft-K.exe ^
+            --windows-force-icon ^
+            --enable-plugin=pyqt6 ^
+            --include-package=ui ^
+            --include-data-dir=icons=icons ^
+            main.py
 
-      - name: Build exe with Nuitka
-        run: |
-          nuitka main.py --onefile --windows-icon-from-ico=icon.ico --output-filename=Soft-K.exe --windows-disable-console --enable-plugin=requests --enable-plugin=asyncio --enable-plugin=pandas --enable-plugin=pyqt6 --enable-plugin=pygments --enable-plugin=aiohttp --include-data-dir=icons=icons --include-data-dir=ui=ui --remove-output --lto=yes --follow-imports --show-progress          
-
-      - name: Upload artifact exe
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K-exe
           path: Soft-K.exe
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build_logs
+          path: |
+            build/
+            *.log

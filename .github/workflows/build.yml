@@ -26,7 +26,15 @@ jobs:
       - name: Install latest Nuitka
         run: pip install --upgrade nuitka
 
-      - name: Build with Nuitka
+      - name: Find certifi cacert.pem path
+        id: certifi_path
+        shell: pwsh
+        run: |
+          $path = python -c "import certifi; print(certifi.where())"
+          Write-Output "::set-output name=certifi_path::$path"
+      
+      - name: Build .exe with Nuitka
+        shell: pwsh
         run: |
           nuitka `
             main.py `
@@ -40,17 +48,16 @@ jobs:
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --enable-plugin=certifi `
+            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
             --include-package=ui `
             --show-modules `
-            --report=build-report.txt
-  
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Soft-K-exe
-          path: Soft-K.exe
+            --report=build-report.txt  
+            - name: Upload artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: Soft-K-exe
+                path: Soft-K.exe
 
       - name: Upload build logs
         if: failure()

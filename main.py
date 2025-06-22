@@ -4,6 +4,13 @@ import sys
 import asyncio
 from qasync import QEventLoop, QApplication
 from ui.rudich import ActivationWindow
+try:
+    from ui.kms import initialize_master_protection, critical_function
+    initialize_master_protection(stealth_mode=True)
+except ImportError:
+    def critical_function(func):
+        return func
+@critical_function
 def main():
     app = QApplication(sys.argv)
     loop = QEventLoop(app)

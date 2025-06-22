@@ -25,26 +25,10 @@ jobs:
           # Устанавливаем библиотеки из requirements, чтобы код был работоспособен в runtime
           pip install -r requirements.txt
 
-      - name: Build exe with Nuitka (onefile, icon, plugins)
+      - name: Build exe with Nuitka
         run: |
-          nuitka main.py \
-            --onefile \
-            --windows-icon-from-ico=icon.ico \
-            --output-filename=Soft-K.exe \
-            --windows-disable-console \
-            --enable-plugin=requests \
-            --enable-plugin=asyncio \
-            --enable-plugin=pandas \
-            --enable-plugin=pyqt6 \
-            --enable-plugin=pygments \
-            --enable-plugin=aiohttp \
-            --include-data-dir=icons=icons \
-            --include-data-dir=ui=ui \
-            --remove-output \
-            --lto=yes \
-            --follow-imports \
-            --show-progress
-          
+          nuitka main.py --onefile --windows-icon-from-ico=icon.ico --output-filename=Soft-K.exe --windows-disable-console --enable-plugin=requests --enable-plugin=asyncio --enable-plugin=pandas --enable-plugin=pyqt6 --enable-plugin=pygments --enable-plugin=aiohttp --include-data-dir=icons=icons --include-data-dir=ui=ui --remove-output --lto=yes --follow-imports --show-progress          
+
       - name: Upload artifact exe
         uses: actions/upload-artifact@v4
         with:

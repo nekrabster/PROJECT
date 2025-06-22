@@ -46,7 +46,7 @@ jobs:
             --show-progress
           
       - name: Upload artifact exe
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Soft-K-exe
           path: Soft-K.exe

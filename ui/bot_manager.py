@@ -1,4 +1,6 @@
 import logging
+import sys
+import os
 from typing import Dict, List, Set, Any
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QCheckBox, QPushButton,
@@ -7,10 +9,16 @@ from PyQt6.QtWidgets import (
     QApplication, QMenu
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QIcon
+from PyQt6.QtGui import QFont, QIcon
 from ui.bots_win import BotTokenWindow
 from ui.bombardo import BotManagerDialog
 from ui.table_manager_base import BaseTableManager
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath('.'), relative_path)
+
 class StatBlock(QFrame):
     ICONS = {
         'Всего': '',
@@ -331,14 +339,14 @@ class BotManagerWindow(BaseTableManager):
                 actions_layout.setContentsMargins(0, 0, 0, 0)
                 actions_layout.setSpacing(8)
                 edit_btn = QPushButton()
-                edit_btn.setIcon(QIcon("icons/icon113.png"))
+                edit_btn.setIcon(QIcon(resource_path("icons/icon113.png")))
                 edit_btn.setToolTip("Изменить")
                 edit_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #e0f7fa; border-radius: 4px; }")
                 edit_btn.setIconSize(edit_btn.sizeHint())
                 edit_btn.clicked.connect(lambda checked, r=i, t=token_str: self.open_bot_manager(r, t))
                 actions_layout.addWidget(edit_btn)
                 del_btn = QPushButton()
-                del_btn.setIcon(QIcon("icons/icon112.png"))
+                del_btn.setIcon(QIcon(resource_path("icons/icon112.png")))
                 del_btn.setToolTip("Удалить")
                 del_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #ffebee; border-radius: 4px; }")
                 del_btn.setIconSize(del_btn.sizeHint())

@@ -3,7 +3,7 @@ import sys
 from datetime import datetime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox,
+    QTableWidgetItem, QHeaderView, QCheckBox,
     QFileDialog, QMessageBox, QToolButton, QFrame, QInputDialog,
     QDialog, QListWidget, QListWidgetItem, QScrollArea, QSplitter
 )
@@ -777,7 +777,7 @@ class SessionManagerWindow(BaseTableManager):
                 premium_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(i, 7, premium_item)
                 edit_btn = QPushButton()
-                edit_btn.setIcon(QIcon("icons/icon113.png"))
+                edit_btn.setIcon(QIcon(resource_path("icons/icon113.png")))
                 edit_btn.setToolTip("Изменить")
                 edit_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #e0f7fa; border-radius: 4px; }")
                 edit_btn.setIconSize(edit_btn.sizeHint())

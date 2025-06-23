@@ -3,7 +3,7 @@ name: Build Windows EXE with Nuitka
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   build:
@@ -21,13 +21,13 @@ jobs:
       - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
 
-      - name: 📦 Install requirements
+      - name: 📦 Install Python requirements
         run: pip install -r requirements.txt
 
       - name: 🌙 Install latest Nuitka
         run: pip install --upgrade nuitka
 
-      - name: 💿 Install Clang
+      - name: 💿 Install Clang for Nuitka
         run: choco install llvm --no-progress
 
       - name: 🔍 Find certifi cacert.pem path
@@ -35,6 +35,7 @@ jobs:
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
+
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         run: |
@@ -42,31 +43,35 @@ jobs:
             main.py `
             --standalone `
             --onefile `
-            --lto=yes `
-            --clang `
-            --windows-disable-console `
-            --python-flag=O `
-            --anti-bloat `
             --remove-output `
+            --windows-icon-from-ico=icon.ico `
             --output-dir=dist `
             --output-filename=Soft-K `
-            --windows-icon-from-ico=icon.ico `
+            --windows-disable-console `
+            --clang `
+            --lto=yes `
+            --static-libpython=yes `
             --assume-yes-for-downloads `
             --follow-imports `
+            --noinclude-default-mode=error `
+            --nofollow-import-to=tests,examples,setuptools,unittest,tkinter `
+            --no-pyi-warnings `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
+            --include-data-dir=ui=ui `
+            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-package=ui `
-            --show-modules `
-            --report=build-report.txt
-      - name: ☁️ Upload .exe as artifact
+            --report=build-report.txt `
+            --show-modules
+
+      - name: ☁️ Upload compiled .exe
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
 
-      - name: 📋 Upload build logs (if failed)
+      - name: 📋 Upload build logs if failed
         if: failure()
         uses: actions/upload-artifact@v4
         with:

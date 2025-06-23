@@ -55,7 +55,6 @@ jobs:
             --follow-imports `
             --noinclude-default-mode=error `
             --nofollow-import-to=tests,examples,setuptools,unittest,tkinter `
-            --no-pyi-warnings `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
             --include-data-dir=icons=icons `

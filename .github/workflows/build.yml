@@ -50,7 +50,6 @@ jobs:
             --windows-disable-console `
             --clang `
             --lto=yes `
-            --static-libpython=yes `
             --assume-yes-for-downloads `
             --follow-imports `
             --noinclude-default-mode=error `

@@ -52,7 +52,6 @@ jobs:
             --nofollow-import-to=tests,setuptools,examples `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --enable-plugin=certifi `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
             --include-package=ui `

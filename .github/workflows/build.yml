@@ -27,14 +27,12 @@ jobs:
       - name: 🌙 Install latest Nuitka
         run: pip install --upgrade nuitka
 
-      - name: 💿 Install Clang
-        run: choco install llvm --no-progress
-
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
+
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         run: |
@@ -42,9 +40,6 @@ jobs:
             main.py `
             --standalone `
             --onefile `
-            --msvc=latest `
-            --lto=yes `
-            --python-flag=no_asserts `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
@@ -57,18 +52,18 @@ jobs:
             --include-data-dir=icons=icons `
             --include-package=ui `
             --show-modules `
-            --jobs=0 `
-            --clang-disable-werror `
-            --run-strip `
-            --windows-disable-console `
-            --disable-ccache `
-            --high-memory `
-            --static-libpython=no `
-            --noinclude-setuptools-mode=error `
-            --windows-uac-admin=no `
-            --windows-company-name="SOFT-K" `
-            --windows-product-name="SOFT-K" `
-            --report=build-report.txt
+            --report=build-report.txt `
+            --lto=yes `
+            --pgo `
+            --mingw64 `
+            --clang `
+            --python-flag=no_docstrings `
+            --python-flag=no_asserts `
+            --remove-unused-functions `
+            --quiet `
+            --no-progress `
+            --jobs=4
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

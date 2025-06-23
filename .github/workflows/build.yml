@@ -24,8 +24,11 @@ jobs:
       - name: 📦 Install requirements
         run: pip install -r requirements.txt
 
-      - name: 🌙 Install Nuitka 2.7.10
-        run: pip install --upgrade "nuitka==2.7.10"
+      - name: 🌙 Install latest Nuitka
+        run: pip install --upgrade nuitka
+
+      - name: 💿 Install Clang (optional, отключено)
+        run: echo "Skipping Clang for speed optimization"
 
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
@@ -33,60 +36,41 @@ jobs:
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
 
-      - name: 🧹 Clean __pycache__ and *.pyc
-        shell: pwsh
-        run: |
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue __pycache__
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue *.pyc
-
-      - name: 🛠 Build .exe with Nuitka
+      - name: 🛠 Build Soft-K.exe with Nuitka
         shell: pwsh
         run: |
           nuitka `
             main.py `
             --standalone `
             --onefile `
-            --clang `
-            --lto=yes `
-            --static-libpython=yes `
-            --nofollow-import-to=tests,examples,setuptools `
-            --jobs=4 `
-            --assume-yes-for-downloads `
+            --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
-            --onefile-tempdir-spec="%TEMP%\\softk_cache" `
-            --windows-company-name="Soft-K Inc." `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
-            --disable-console `
-            --report=build-report.txt `
-            --show-modules `
+            --windows-disable-console `
+            --follow-imports `
+            --nofollow-import-to=tests,setuptools,examples `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --include-data-dir=icons=icons `
+            --enable-plugin=certifi `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
+            --include-data-dir=icons=icons `
             --include-package=ui `
-            --include-package=ui.rudich `
-            --include-package=ui.bombardirocrocodilo `
-            --include-package=ui.damkrat `
-            --include-package=ui.theme `
-            --include-package=random `
-            --include-package=colorsys `
-            --include-package=time `
-            --include-package=math `
-            --include-package=qasync `
-            --include-package=psutil `
-            --include-package=pandas `
-            --include-package-data=*
+            --include-package=ui.* `
+            --no-pyi-warnings `
+            --static-libpython=yes `
+            --jobs=4 `
+            --low-memory-mode=no `
+            --show-modules `
+            --report=build-report.txt
 
-      - name: ☁️ Upload .exe as artifact
+      - name: ☁️ Upload Soft-K.exe
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
 
-      - name: 📋 Upload build logs (if failed)
+      - name: 📋 Upload build logs if failed
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -94,3 +78,4 @@ jobs:
           path: |
             build/
             *.log
+            build-report.txt

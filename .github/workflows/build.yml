@@ -53,7 +53,6 @@ jobs:
             --include-data-dir=icons=icons `
             --include-package=ui `
             --include-package=ui.* `
-            --no-pyi-warnings `
             --jobs=4 `
             --show-modules `
             --report=build-report.txt

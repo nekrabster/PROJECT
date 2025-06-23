@@ -48,21 +48,15 @@ jobs:
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
+            --lto=yes `
+            --pgo `
+            -O3 `
+            --disable-ccache `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
             --include-package=ui `
             --show-modules `
-            --report=build-report.txt `
-            --lto=yes `
-            --pgo `
-            --mingw64 `
-            --clang `
-            --python-flag=no_docstrings `
-            --python-flag=no_asserts `
-            --remove-unused-functions `
-            --quiet `
-            --no-progress `
-            --jobs=4
+            --report=build-report.txt
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4

@@ -52,7 +52,6 @@ jobs:
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
             --include-package=ui `
-            --include-package=ui.* `
             --jobs=4 `
             --show-modules `
             --report=build-report.txt

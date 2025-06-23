@@ -42,14 +42,9 @@ jobs:
             main.py `
             --standalone `
             --onefile `
+            --msvc=latest `
             --lto=yes `
-            --clang `
-            --windows-disable-console `
             --python-flag=no_asserts `
-            --python-flag="-O" `
-            --c-flags="-O3 -march=x86-64-v3" `
-            --pgo `
-            --disable-console `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
@@ -58,11 +53,21 @@ jobs:
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --low-memory `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
             --include-package=ui `
             --show-modules `
+            --jobs=0 `
+            --clang-disable-werror `
+            --run-strip `
+            --windows-disable-console `
+            --disable-ccache `
+            --high-memory `
+            --static-libpython=no `
+            --noinclude-setuptools-mode=error `
+            --windows-uac-admin=no `
+            --windows-company-name="SOFT-K" `
+            --windows-product-name="SOFT-K" `
             --report=build-report.txt
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4

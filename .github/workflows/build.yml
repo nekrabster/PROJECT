@@ -65,7 +65,6 @@ jobs:
             --show-modules `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --enable-plugin=certifi `
             --include-data-dir=icons=icons `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-package=ui `

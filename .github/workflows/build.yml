@@ -27,6 +27,9 @@ jobs:
       - name: 🌙 Install latest Nuitka
         run: pip install --upgrade nuitka
 
+      - name: 💿 Install Clang
+        run: choco install llvm --no-progress
+
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
@@ -40,7 +43,9 @@ jobs:
             --standalone `
             --onefile `
             --lto=yes `
+            --clang `
             --windows-disable-console `
+            --python-flag=no_asserts `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
@@ -48,7 +53,6 @@ jobs:
             --assume-yes-for-downloads `
             --follow-imports `
             --enable-plugin=pyqt6 `
-            --enable-plugin=anti-bloat `
             --enable-plugin=data-files `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `

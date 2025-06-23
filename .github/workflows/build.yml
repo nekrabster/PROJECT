@@ -1,4 +1,4 @@
-name: Сборка .exe с Nuitka (OneFile + Clang + Оптимизация)
+name: Сборка Windows EXE с Nuitka (Оптимизировано для скорости)
 
 on:
   workflow_dispatch:
@@ -10,20 +10,23 @@ jobs:
     runs-on: windows-2022
 
     steps:
-      - name: 📄 Загрузка кода
+      - name: 🧾 Загрузка кода
         uses: actions/checkout@v4
 
-      - name: 🐍 Настройка Python 3.12
+      - name: 🐍 Установка Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
+          cache: 'pip'  # Кэширование для ускорения установки пакетов
+
+      - name: 🆙 Обновление pip
+        run: python -m pip install --upgrade pip
 
       - name: 📦 Установка зависимостей
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install --upgrade nuitka
+        run: pip install -r requirements.txt
+
+      - name: 🌙 Установка последней версии Nuitka
+        run: pip install --upgrade nuitka
 
       - name: 🧰 Настройка MSVC для Clang
         uses: ilammy/msvc-dev-cmd@v1
@@ -33,13 +36,7 @@ jobs:
         with:
           version: 17
 
-      - name: 🔍 Определение пути к certifi
-        id: certifi_path
-        shell: bash
-        run: |
-          echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-
-      - name: 🛠 Сборка с Nuitka
+      - name: 🛠 Сборка .exe с Nuitka и оптимизациями
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
@@ -47,69 +44,34 @@ jobs:
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-          python -m nuitka main.py `
-            --onefile `
+          python -m nuitka `
+            main.py `
             --standalone `
-            --enable-plugin=pyqt6 `
-            --output-dir=dist `
+            --onefile `
             --remove-output `
-            --no-pyi-file `
+            --output-dir=dist `
+            --output-filename=Soft-K `
+            --windows-icon-from-ico=icons/icon.ico `
+            --assume-yes-for-downloads `
+            --follow-imports `
+            --enable-plugin=pyqt6 `
+            --enable-plugin=data-files `
             --lto=yes `
             --clang `
             --jobs=4 `
-            --windows-icon-from-ico=icons/icon.ico `
+            --no-pyi-file `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version="1.0.0" `
-            --output-filename=Soft-K.exe `
-            --include-module=ui.rudich `
-            --include-module=ui.complas `
-            --include-module=ui.components `
-            --include-module=ui.malining `
-            --include-module=ui.malina `
-            --include-module=ui.bombardirocrocodilo `
-            --include-module=ui.newtoken `
-            --include-module=ui.kachok `
-            --include-module=ui.session `
-            --include-module=ui.subscribe `
-            --include-module=ui.session_manager `
-            --include-module=ui.sim_manager `
-            --include-module=ui.session_win `
-            --include-module=ui.bombardo `
-            --include-module=ui.okak `
-            --include-module=ui.rass `
-            --include-module=ui.timer `
-            --include-module=ui.progress `
-            --include-module=ui.thread_base `
-            --include-module=ui.apphuy `
-            --include-module=ui.appchuy `
-            --include-module=ui.search `
-            --include-module=ui.proxy_utils `
-            --include-module=ui.mail `
-            --include-module=ui.instructions `
-            --include-module=ui.subs `
-            --include-module=ui.damkrat `
-            --include-module=ui.theme `
-            --include-module=ui.styles `
-            --include-module=ui.top `
-            --include-module=ui.side `
-            --include-module=ui.bottom `
-            --include-module=ui.informatika `
-            --include-module=ui.bot_manager `
-            --include-module=ui.bots_win `
-            --include-module=ui.gulick `
-            --include-module=ui.integraly `
-            --include-module=ui.kms `
-            --include-module=ui.codik `
-            --include-module=ui.adv `
-            --include-module=ui.filya `
-            --include-module=ui.decorators `
             --include-data-files=icons/*.png=icons/ `
-            --include-data-files=icons/*.ico=icons/ `
-            --follow-imports `
-            --assume-yes-for-downloads `
-            --show-scons `
-            --verbose
+            --include-data-files=icons/*.ico=icons/
+
+      - name: ☁️ Выгрузка .exe как артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: Soft-K.exe
+          path: dist/Soft-K.exe
+          retention-days: 3
 
       - name: 📋 Загрузка логов сборки (при ошибке)
         if: failure()
@@ -119,10 +81,3 @@ jobs:
           path: |
             build/
             *.log
-
-      - name: ☁️ Загрузка .exe как артефакт
-        uses: actions/upload-artifact@v4
-        with:
-          name: Soft-K.exe
-          path: dist/Soft-K.exe
-          retention-days: 1

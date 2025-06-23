@@ -50,7 +50,6 @@ jobs:
             --lto=yes `
             --static-libpython=yes `
             --nofollow-import-to=tests,examples,setuptools `
-            --no-pyi-warnings `
             --jobs=4 `
             --assume-yes-for-downloads `
             --output-dir=dist `

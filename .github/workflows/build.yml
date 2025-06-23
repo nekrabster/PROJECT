@@ -27,9 +27,6 @@ jobs:
       - name: 🌙 Install latest Nuitka
         run: pip install --upgrade nuitka
 
-      - name: 💿 Install Clang (optional, отключено)
-        run: echo "Skipping Clang for speed optimization"
-
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
@@ -39,7 +36,7 @@ jobs:
       - name: 🛠 Build Soft-K.exe with Nuitka
         shell: pwsh
         run: |
-          nuitka `
+          python -m nuitka `
             main.py `
             --standalone `
             --onefile `
@@ -56,16 +53,15 @@ jobs:
             --include-data-dir=icons=icons `
             --include-package=ui `
             --include-package=ui.* `
-            --static-libpython=yes `
+            --no-pyi-warnings `
             --jobs=4 `
-            --low-memory-mode=no `
             --show-modules `
             --report=build-report.txt
 
-      - name: ☁️ Upload Soft-K.exe
+      - name: ☁️ Upload Soft‑K.exe
         uses: actions/upload-artifact@v4
         with:
-          name: Soft-K.exe
+          name: Soft‑K.exe
           path: dist/Soft-K.exe
 
       - name: 📋 Upload build logs if failed

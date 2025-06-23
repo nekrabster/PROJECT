@@ -45,7 +45,7 @@ jobs:
             --lto=yes `
             --clang `
             --windows-disable-console `
-            --python-flag=no_asserts `
+            --python-flag=O `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `

@@ -57,7 +57,6 @@ jobs:
             --include-data-dir=icons=icons `
             --include-package=ui `
             --include-package=ui.* `
-            --no-pyi-warnings `
             --static-libpython=yes `
             --jobs=4 `
             --low-memory-mode=no `

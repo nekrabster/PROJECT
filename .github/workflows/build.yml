@@ -50,7 +50,6 @@ jobs:
             --enable-plugin=data-files `
             --lto=yes `
             --pgo-c `
-            --noinclude-default-mode=release `
             --disable-ccache `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `

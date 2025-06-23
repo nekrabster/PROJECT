@@ -13,10 +13,10 @@ jobs:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.13.5
+      - name: 🐍 Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13.5'
+          python-version: '3.13'
 
       - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
@@ -27,42 +27,50 @@ jobs:
       - name: 🌙 Install latest Nuitka
         run: pip install --upgrade nuitka
 
+      - name: 💿 Install Clang
+        run: choco install llvm --no-progress
+
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-
-      - name: 🛠 Build Soft-K.exe with Nuitka
+      - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         run: |
-          python -m nuitka `
+          nuitka `
             main.py `
             --standalone `
             --onefile `
+            --lto=yes `
+            --clang `
+            --windows-disable-console `
+            --python-flag=no_asserts `
+            --python-flag="-O" `
+            --c-flags="-O3 -march=x86-64-v3" `
+            --pgo `
+            --disable-console `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
-            --windows-disable-console `
+            --assume-yes-for-downloads `
             --follow-imports `
-            --nofollow-import-to=tests,setuptools,examples `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
+            --low-memory `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
             --include-package=ui `
-            --jobs=4 `
             --show-modules `
             --report=build-report.txt
-
-      - name: ☁️ Upload Soft‑K.exe
+      - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Soft‑K.exe
+          name: Soft-K.exe
           path: dist/Soft-K.exe
 
-      - name: 📋 Upload build logs if failed
+      - name: 📋 Upload build logs (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -70,4 +78,3 @@ jobs:
           path: |
             build/
             *.log
-            build-report.txt

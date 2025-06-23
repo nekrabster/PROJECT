@@ -46,6 +46,7 @@ jobs:
             --clang `
             --windows-disable-console `
             --python-flag=O `
+            --anti-bloat `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `

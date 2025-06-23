@@ -16,7 +16,7 @@ from ui.table_manager_base import BaseTableManager
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath('.'), relative_path)
+    return os.path.join(os.path.dirname(__file__), os.pardir, relative_path)
 class StatBlock(QFrame):
     ICONS = {
         'Сессий': '',
@@ -71,6 +71,7 @@ class StatBlock(QFrame):
         layout.addWidget(self.title_label)
     def set_number(self, number):
         self.number_label.setText(str(number))
+
 class FilterDialog(QDialog):
     def __init__(self, title, items, parent=None):
         super().__init__(parent)
@@ -247,6 +248,7 @@ class FilterDialog(QDialog):
         self.update_selected_panel()
     def get_selected_items(self):
         return list(self.selected_countries)
+
 class BooleanFilterDialog(QDialog):
     def __init__(self, title, parent=None):
         super().__init__(parent)
@@ -353,6 +355,7 @@ class BooleanFilterDialog(QDialog):
             if item.checkState() == Qt.CheckState.Checked:
                 return self.list_widget.itemWidget(item).findChild(QLabel).text()
         return "Все"
+
 class SessionManagerWindow(BaseTableManager):
     stats_updated = pyqtSignal(dict)
     def __init__(self, session_folder, parent=None):

@@ -34,9 +34,10 @@ jobs:
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
 
       - name: 🧹 Clean __pycache__ and *.pyc
+        shell: pwsh
         run: |
-          del /s /q __pycache__
-          del /s /q *.pyc
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue __pycache__
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue *.pyc
 
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh

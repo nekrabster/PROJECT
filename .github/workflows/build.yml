@@ -3,7 +3,7 @@ name: Build Windows EXE with Nuitka
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [ main, master ]
 
 jobs:
   build:
@@ -13,28 +13,30 @@ jobs:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.13
+      - name: 🐍 Set up Python 3.13.5
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13.5'
 
       - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
 
-      - name: 📦 Install Python requirements
+      - name: 📦 Install requirements
         run: pip install -r requirements.txt
 
-      - name: 🌙 Install latest Nuitka
-        run: pip install --upgrade nuitka
-
-      - name: 💿 Install Clang for Nuitka
-        run: choco install llvm --no-progress
+      - name: 🌙 Install Nuitka 2.7.10
+        run: pip install --upgrade "nuitka==2.7.10"
 
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
+
+      - name: 🧹 Clean __pycache__ and *.pyc
+        run: |
+          del /s /q __pycache__
+          del /s /q *.pyc
 
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
@@ -43,33 +45,49 @@ jobs:
             main.py `
             --standalone `
             --onefile `
-            --remove-output `
-            --windows-icon-from-ico=icon.ico `
-            --output-dir=dist `
-            --output-filename=Soft-K `
-            --windows-disable-console `
             --clang `
             --lto=yes `
+            --static-libpython=yes `
+            --nofollow-import-to=tests,examples,setuptools `
+            --no-pyi-warnings `
+            --jobs=4 `
             --assume-yes-for-downloads `
-            --follow-imports `
-            --noinclude-default-mode=error `
-            --nofollow-import-to=tests,examples,setuptools,unittest,tkinter `
+            --output-dir=dist `
+            --output-filename=Soft-K `
+            --windows-icon-from-ico=icon.ico `
+            --onefile-tempdir-spec="%TEMP%\\softk_cache" `
+            --windows-company-name="Soft-K Inc." `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="1.0.0" `
+            --disable-console `
+            --report=build-report.txt `
+            --show-modules `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
+            --enable-plugin=certifi `
             --include-data-dir=icons=icons `
-            --include-data-dir=ui=ui `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-package=ui `
-            --report=build-report.txt `
-            --show-modules
+            --include-package=ui.rudich `
+            --include-package=ui.bombardirocrocodilo `
+            --include-package=ui.damkrat `
+            --include-package=ui.theme `
+            --include-package=random `
+            --include-package=colorsys `
+            --include-package=time `
+            --include-package=math `
+            --include-package=qasync `
+            --include-package=psutil `
+            --include-package=pandas `
+            --include-package-data=*
 
-      - name: ☁️ Upload compiled .exe
+      - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
 
-      - name: 📋 Upload build logs if failed
+      - name: 📋 Upload build logs (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:

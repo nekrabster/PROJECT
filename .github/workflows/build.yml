@@ -49,7 +49,7 @@ jobs:
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
             --lto=yes `
-            --pgo `
+            --pgo-c `
             -O3 `
             --disable-ccache `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `

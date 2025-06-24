@@ -7,23 +7,25 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     steps:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.13.2
+      - name: 🐍 Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13.2'
-          cache: 'pip'
 
-      - name: 🆙 Upgrade pip and install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install --upgrade nuitka
+      - name: 🆙 Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: 📦 Install requirements
+        run: pip install -r requirements.txt
+
+      - name: 🌙 Install latest Nuitka
+        run: pip install --upgrade nuitka
 
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
@@ -46,19 +48,9 @@ jobs:
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-          python -m nuitka `
+          nuitka `
             main.py `
             --onefile `
-            --onefile-tempdir-spec="%TEMP%/onefile_%PID%_%TIME%" `
-            --standalone `
-            --remove-output `
-            --output-dir=dist `
-            --output-filename=Soft-K `
-            --windows-icon-from-ico=icon.ico `
-            --assume-yes-for-downloads `
-            --standalone `
-            --onefile `
-            --onefile-tempdir-spec="%TEMP%/onefile_%PID%_%TIME%" `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
@@ -74,7 +66,6 @@ jobs:
             --lto=yes `
             --jobs=4 `
             --no-pyi-file `
-            --python-flag=-OO `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -127,7 +118,6 @@ jobs:
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
-          retention-days: 5
 
       - name: 📋 Upload build logs (if failed)
         if: failure()

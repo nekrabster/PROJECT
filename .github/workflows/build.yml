@@ -1,4 +1,4 @@
-name: Build Windows EXE with Nuitka (OneFile + Clang + LTO)
+name: Build Windows EXE with Nuitka (Clang + LTO)
 
 on:
   workflow_dispatch:
@@ -7,74 +7,62 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
-
-    env:
-      PYTHONIOENCODING: utf-8
-      PYTHONLEGACYWINDOWSSTDIO: utf-8
+    runs-on: windows-2022
 
     steps:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13 (with pip cache)
+      - name: 🐍 Setup Python 3.13 (кеш pip)
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
 
-      - name: 🆙 Upgrade pip and install dependencies
+      - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --upgrade -r requirements.txt
+          pip install -r requirements.txt
           pip install --upgrade nuitka
 
-      - name: 🧰 Setup MSVC build environment
+      - name: 🧰 Setup MSVC Dev Cmd (для среды сборки)
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: ⚙️ Install LLVM/Clang
+      - name: ⚙️ Install LLVM/Clang 17
         uses: egor-tensin/setup-clang@v1
         with:
-          version: '17'
+          version: 17
 
-      - name: 🛠️ Build EXE with Nuitka (Clang + LTO)
+      - name: 🔧 Build .exe with Nuitka (Clang + LTO)
         shell: pwsh
+        env:
+          PYTHONIOENCODING: "utf-8"
+          PYTHONLEGACYWINDOWSSTDIO: "utf-8"
+          CC: "clang-cl"
+          CXX: "clang-cl"
         run: |
-          # Указываем компилятор
-          $env:CC   = "clang-cl"
-          $env:CXX  = "clang-cl"
-          # Собираем с LTO, многопоточно, плагином PyQt6, без отладочных .pdb и без .pyi
           python -m nuitka main.py `
             --onefile `
             --standalone `
             --clang `
-            --jobs=4 `
             --lto=yes `
-            --lto-threads=4 `
-            --no-pyi-file `
-            --remove-output `
-            --output-dir=dist `
-            --output-filename=Soft-K.exe `
-            --windows-icon-from-ico=icon.ico `
+            --jobs=$(Get-Process | Measure-Object).Count `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --include-data-file="icons/*.png=icons" `
-            --include-data-file="icons/*.ico=icons" `
-            --include-data-file="$(python -c 'import certifi; print(certifi.where())')=certifi/cacert.pem" `
+            --include-package=ui `
+            --include-data-dir=icons=icons `
+            --include-data-file="$(python -c 'import certifi;print(certifi.where())')=certifi/cacert.pem" `
+            --windows-icon-from-ico=icon.ico `
+            --output-dir=dist `
+            --output-filename=Soft-K.exe `
+            --remove-output `
             --follow-imports `
             --assume-yes-for-downloads `
-            --show-modules `
-            --report=build-report.txt
+            --verbose
 
-      - name: ☁️ Upload compiled EXE
+      - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
-
-      - name: 📋 Upload build report (on failure)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-report
-          path: build-report.txt
+          retention-days: 3

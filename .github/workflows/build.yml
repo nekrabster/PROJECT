@@ -1,4 +1,4 @@
-name: Build Windows EXE with Nuitka
+name: Build Windows EXE с максимальной оптимизацией
 
 on:
   workflow_dispatch:
@@ -17,6 +17,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
 
       - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
@@ -49,8 +50,7 @@ jobs:
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-          nuitka `
-            main.py `
+          python -m nuitka main.py `
             --standalone `
             --onefile `
             --remove-output `
@@ -62,11 +62,20 @@ jobs:
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
-            --include-data-dir=icons=icons `
+            --include-data-files=icons/*.png=icons/ `
+            --include-data-files=icons/*.ico=icons/ `
             --clang `
             --lto=yes `
             --jobs=4 `
             --no-pyi-file `
+            --no-asserts `
+            --remove-debug `
+            --python-flag=no_docstrings `
+            --python-flag=no_annotations `
+            --python-flag=no_warnings `
+            --static-libpython=no `
+            --disable-ccache `
+            --disable-console `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -112,10 +121,16 @@ jobs:
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version="1.0.0" `
-            --show-modules `
             --show-scons `
-            --verbose `
-            --report=build-report.txt
+            --opt-level=3 `
+            --macos-create-app-bundle=no `
+            --msvc-targets-arch=x86_64 `
+            --clang-debug-level=0 `
+            --clang-execution-engine=no `
+            --clang-disable-crt-warnings `
+            --clang-optimization-level=3 `
+            --show-modules `
+            --verbose
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
@@ -131,3 +146,4 @@ jobs:
           path: |
             build/
             *.log
+            build-report.txt

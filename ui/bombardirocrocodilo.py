@@ -34,6 +34,7 @@ from ui.samit import SamitWindow
 from ui.proxy_utils import parse_proxy_string
 from ui.mail import MailWindow
 from ui.subs import SubsWindow
+from ui.kraken import KrakenWindow
 from ui.instructions import INSTRUCTIONS
 from ui.damkrat import ColorGenerator
 from ui.theme import ThemeManager
@@ -349,10 +350,12 @@ class MainWindow(QWidget):
             "samit": SamitWindow(self, self.api_id, self.api_hash),
             "mail": MailWindow(self),
             "subs": SubsWindow(self.session_folder, self),
+            "kraken": KrakenWindow(self),
         }
     def handle_window_switch(self, window_name, *args):
-        self.stacked_widget.setCurrentWidget(self.windows[window_name])
-        self.update_instruction_panel(window_name)
+        if window_name in self.windows:
+            self.stacked_widget.setCurrentWidget(self.windows[window_name])
+            self.update_instruction_panel(window_name)
     def update_instruction_panel(self, window_name=None, *args):
         if window_name is None:
             idx = self.stacked_widget.currentIndex()

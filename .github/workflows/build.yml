@@ -1,4 +1,4 @@
-name: Сборка Windows EXE с максимальной оптимизацией производительности Nuitka 2.7.10
+name: Build Windows EXE with Nuitka
 
 on:
   workflow_dispatch:
@@ -10,42 +10,37 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: 🧾 Получение исходного кода
+      - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Настройка Python 3.13
+      - name: 🐍 Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          cache: 'pip'
 
-      - name: 🆙 Обновление pip
+      - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
 
-      - name: 📦 Установка зависимостей
+      - name: 📦 Install requirements
         run: pip install -r requirements.txt
 
-      - name: 🌙 Установка последней версии Nuitka
+      - name: 🌙 Install latest Nuitka
         run: pip install --upgrade nuitka
 
-      - name: 📋 Установка дополнительных зависимостей для оптимизации
-        run: |
-          pip install --upgrade zstandard
-          pip install --upgrade setuptools
-      - name: 🧰 Настройка MSVC для максимальной производительности
+      - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: ⚙️ Установка LLVM (Clang) для LTO оптимизации
+      - name: ⚙️ Install LLVM (Clang)
         uses: egor-tensin/setup-clang@v1
         with:
           version: 17
 
-      - name: 🔍 Определение пути к сертификатам certifi
+      - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-      - name: 🛠 Сборка .exe с максимальной оптимизацией Nuitka 2.7.10
+      - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
@@ -53,23 +48,25 @@ jobs:
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-          python -m nuitka main.py `
-            --mode=onefile `
+          nuitka `
+            main.py `
+            --standalone `
+            --onefile `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="2.3.6" `
             --assume-yes-for-downloads `
+            --disable-console `
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --enable-plugin=anti-bloat `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
-            --include-data-files=icons/*.png=icons/ `
-            --include-data-files=icons/*.ico=icons/ `
+            --include-data-dir=icons=icons `
+            --clang `
+            --lto=yes `
+            --jobs=4 `
+            --no-pyi-file `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -84,6 +81,7 @@ jobs:
             --include-module=ui.sim_manager `
             --include-module=ui.session_win `
             --include-module=ui.bombardo `
+            --include-module=ui.kraken `
             --include-module=ui.okak `
             --include-module=ui.rass `
             --include-module=ui.timer `
@@ -92,7 +90,6 @@ jobs:
             --include-module=ui.apphuy `
             --include-module=ui.appchuy `
             --include-module=ui.search `
-            --include-module=ui.kraken `
             --include-module=ui.proxy_utils `
             --include-module=ui.mail `
             --include-module=ui.instructions `
@@ -113,30 +110,20 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-module=warnings `
-            --include-module=logging `
-            --clang `
-            --lto=yes `
-            --pgo-c `
-            --deployment `
-            --onefile-no-compression `
-            --jobs=0 `
-            --python-flag=no_docstrings `
-            --python-flag=no_annotations `
-            --nofollow-import-to=tests,examples,setuptools,distutils,unittest,pytest `
-            --experimental=use_pefile `
-            --experimental=use_bundled_includes `
-            --prefer-source-code `
-            --show-scons `
+            --windows-company-name="SecureSoft" `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="1.0.0" `
             --show-modules `
-            --verbose
-      - name: ☁️ Загрузка .exe как артефакт
+            --show-scons `
+            --verbose `
+            --report=build-report.txt
+      - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
 
-      - name: 📋 Загрузка логов сборки (при ошибке)
+      - name: 📋 Upload build logs (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -144,4 +131,3 @@ jobs:
           path: |
             build/
             *.log
-            build-report.txt

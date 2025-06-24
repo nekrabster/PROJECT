@@ -89,7 +89,6 @@ jobs:
             --include-module=ui.gulick `
             --include-module=ui.integraly `
             --include-module=ui.kms `
-            --include-module=ui.integralypro `
             --include-module=ui.codik `
             --include-module=ui.adv `
             --include-module=ui.filya `

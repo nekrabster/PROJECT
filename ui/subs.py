@@ -76,21 +76,22 @@ class SubscriberThread(BaseThread):
     all_wait_limits_count = 0
     MAX_ALL_WAIT_LIMITS = 15
     def __init__(self, session_file: str, session_folder: str, mode: ParserMode,
-                 use_proxy: bool, min_delay: int = 0, max_delay: int = 0,
-                 group_links: Optional[List[str]] = None, check_subscription: bool = True,
+                 use_proxy: bool, group_links: Optional[List[str]] = None,
+                 check_subscription: bool = True,
                  filter_config: Optional[dict] = None,
                  parent=None, proxy=None):
         super().__init__(session_file=session_file, parent=parent)
-        self.session_file = session_file
         self.session_folder = session_folder
         self.mode = mode
         self.use_proxy = use_proxy
         self.proxy = proxy
-        self.group_links = group_links
+        self.group_links = group_links or []
         self.check_subscription = check_subscription
+        self.filter_config = filter_config or {}
         self.collected_users = set()
         self.user_data = []
-        self.filter_config = filter_config or {}
+        self.connection = TelegramConnection(self.session_folder)
+        self.client = None
     @classmethod
     def reset_limits_counter(cls):
         cls.flood_wait_count = 0
@@ -98,43 +99,31 @@ class SubscriberThread(BaseThread):
     async def process(self, *args, **kwargs):
         if not self.running:
             self.log_signal.emit(f"Сессия {self.session_file} остановлена")
-            self.progress_signal.emit(1, "Завершена")
             return
-        connection = TelegramConnection(self.session_folder)
         try:
-            connected, me = await connection.connect(self.session_file, self.use_proxy, proxy=self.proxy)
+            connected, me = await self.connection.connect(self.session_file, self.use_proxy, proxy=self.proxy)
             if not connected or not me:
                 if hasattr(self, 'window') and hasattr(self.window, 'update_parser_stats'):
                     self.window.update_parser_stats('unauthorized')
                 self.log_signal.emit(f"❌ {os.path.basename(self.session_file)} | Сессия не авторизована")
-                self.progress_signal.emit(1, "Завершена")
                 return
-            connection.log_signal.connect(self.log_signal.emit)
-            self.client = connection.client
-            spam_blocked, spam_block_end_date = await connection.check_spam_block()
+            self.connection.log_signal.connect(self.log_signal.emit)
+            self.client = self.connection.client
+            spam_blocked, spam_block_end_date = await self.connection.check_spam_block()
             if spam_blocked:
-                if spam_block_end_date:
-                    self.log_signal.emit(f"⚠️ {os.path.basename(self.session_file)} | Обнаружен спам блок до {spam_block_end_date}")
-                else:
-                    self.log_signal.emit(f"⚠️ {os.path.basename(self.session_file)} | Обнаружен спам блок")
+                end_date_str = f" до {spam_block_end_date}" if spam_block_end_date else ""
+                self.log_signal.emit(f"⚠️ {os.path.basename(self.session_file)} | Обнаружен спам блок{end_date_str}")
                 if hasattr(self, 'window') and hasattr(self.window, 'update_parser_stats'):
                     self.window.update_parser_stats('spam_blocked')
-                await connection.update_session_info(
-                    self.session_file,
-                    me,
-                    spam_blocked=spam_blocked,
-                    spam_block_end_date=spam_block_end_date
-                )
-            await connection.update_session_info(
-                self.session_file,
-                me,
+            await self.connection.update_session_info(
+                self.session_file, me,
                 spam_blocked=spam_blocked,
                 spam_block_end_date=spam_block_end_date
             )
             total_users = 0
             if self.mode == ParserMode.INTERNAL_CHATS:
                 total_users = await self.parse_internal_chats()
-            else:
+            elif self.mode == ParserMode.EXTERNAL_LINKS:
                 total_users = await self.parse_external_links()
             self.log_signal.emit(f"✅ {os.path.basename(self.session_file)} | Собрано пользователей: {total_users}")
         except Exception as e:
@@ -146,10 +135,8 @@ class SubscriberThread(BaseThread):
                     self.window.update_parser_stats('spam_blocked')
             self.log_signal.emit(f"❌ {os.path.basename(self.session_file)} | Ошибка: {str(e)}")
         finally:
-            if hasattr(self, 'client') and self.client:
-                await connection.disconnect()
-            self.progress_signal.emit(100, "Завершена")
-            self.done_signal.emit()
+            if self.client:
+                await self.connection.disconnect()
             self.users_found_signal.emit(len(self.collected_users))
     async def parse_internal_chats(self, *args, **kwargs) -> int:
         self.log_signal.emit(f"🔄 {os.path.basename(self.session_file)} | Получение списка диалогов...")
@@ -408,40 +395,6 @@ class SubscriberThread(BaseThread):
             self.user_data.append(user_data)
         except Exception as e:
             self.log_signal.emit(f"⚠️ {os.path.basename(self.session_file)} | Ошибка при сохранении данных о пользователе: {str(e)}")
-    def stop(self, *args, **kwargs):
-        self.running = False
-        self.is_stopped = True
-        if self.task and not self.task.done():
-            self.task.cancel()
-        if self.loop and self.loop.is_running() and hasattr(self, 'client') and self.client:
-            try:
-                disconnect_result = self.client.disconnect()
-                if asyncio.iscoroutine(disconnect_result):
-                    asyncio.run_coroutine_threadsafe(disconnect_result, self.loop)
-            except (TypeError, RuntimeError, AttributeError) as e:
-                self.log_signal.emit(f"Ошибка при отключении клиента: {str(e)}")
-    def run(self, *args, **kwargs):
-        try:
-            self.loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.loop)
-            self.task = self.loop.create_task(self.process())
-            self.loop.run_until_complete(self.task)
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            self.log_signal.emit(f"ERROR: {str(e)}")
-        finally:
-            if hasattr(self, 'client') and self.client and self.loop and self.loop.is_running():
-                try:
-                    self.loop.run_until_complete(self.client.disconnect())
-                except:
-                    pass
-            if self.loop:
-                self.loop.close()
-            self.loop = None
-            self.task = None
-    def emit_progress(self, value: int, status: str, *args, **kwargs):
-        self.progress_signal.emit(value, status)
 class SubscriberWindow(QWidget, ThreadStopMixin):
     log_signal = pyqtSignal(str)
     progress_signal = pyqtSignal(int, str)
@@ -760,8 +713,6 @@ class SubscriberWindow(QWidget, ThreadStopMixin):
                 session_folder=self.session_window.session_folder,
                 mode=mode,
                 use_proxy=bool(proxy),
-                min_delay=self.min_delay,
-                max_delay=self.max_delay,
                 group_links=links_for_thread,
                 check_subscription=self.check_subscription_checkbox.isChecked(),
                 filter_config=filter_config,

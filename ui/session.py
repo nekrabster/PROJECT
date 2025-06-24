@@ -15,23 +15,20 @@ from ui.proxy_utils import parse_proxies_from_txt
 from ui.bots_win import BotTokenWindow
 from ui.thread_base import BaseThread, ThreadManager
 from ui.appchuy import AiogramBotConnection, select_proxy, AiogramCustomError, AiogramErrorType
-def generate_random_message(*args):
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=10))
 class BotWorker(BaseThread):
     log_signal = pyqtSignal(str)
     error_signal = pyqtSignal(str)
     stats_signal = pyqtSignal(str, int, int, int)
     finished_signal = pyqtSignal(str, str)
-    def __init__(self, token, proxy=None, text=None, min_delay=1, max_delay=5,
-                reply_to_all=False, parent=None):
+    _active_bots = set()
+    def __init__(self, token, proxy=None, text=None, min_delay=0, max_delay=0,
+                 reply_to_all=False, parent=None):
         super().__init__(session_file=token, parent=parent)
         self.token = token
         self.proxy = proxy
         self.text = text
         self.reply_to_all = reply_to_all
         self.set_delay_range(min_delay, max_delay)
-        self._running = True
-        self._stop_event = None
         self.bot_username = "unknown"
         self.start_count = 0
         self.reply_count = 0
@@ -41,8 +38,6 @@ class BotWorker(BaseThread):
         self.mutex = QMutex()
         self.max_reconnect_attempts = 3
         self.reconnect_delay = 5
-        self._already_stopped = False
-        self._active_bots = set()
         self.bot_manager = AiogramBotConnection(token, proxy)
         self.bot_manager.log_signal.connect(self.log_signal.emit)
         self.bot_manager.error_signal.connect(lambda t, e: self.error_signal.emit(f"{t}: {e.message}"))
@@ -60,30 +55,17 @@ class BotWorker(BaseThread):
         with QMutexLocker(self.mutex):
             user_set.add(user_id)
     def stop(self, *args):
-        if self._already_stopped:
-            return
-        self._already_stopped = True
-        self._running = False
-        self._active_bots.clear()
-        if self._stop_event is not None:
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    loop.call_soon_threadsafe(self._stop_event.set)
-            except Exception:
-                pass
-        super()
+        super().stop()
     async def process(self, *args, **kwargs):
         try:
-            self._already_stopped = False
-            self._stop_event = asyncio.Event()
             await self.bot_worker()
+        except asyncio.CancelledError:
+            self.safe_emit(self.log_signal, f"Бот {self.bot_username or self.token[:10]}... отменен.")
         except Exception as e:
             self.safe_emit(self.error_signal, f"Ошибка в потоке бота {self.token}: {str(e)}")
         finally:
-            self._running = False
-            if not self._already_stopped:
-                self.safe_emit(self.finished_signal, self.token, self.bot_username)
+            self.running = False
+            self.safe_emit(self.finished_signal, self.token, self.bot_username)
     async def _setup_bot(self, *args):
         try:
             await self.bot_manager.bot.delete_webhook()
@@ -145,12 +127,12 @@ class BotWorker(BaseThread):
                 await self._handle_regular_message(message)
     async def _process_updates(self, *args):
         offset = 0
-        while self._running and not self._stop_event.is_set():
+        while self.running:
             try:
                 updates = await self.bot_manager.get_updates(offset=offset, timeout=3)
                 if updates:
                     for update in updates:
-                        if not self._running or self._stop_event.is_set():
+                        if not self.running:
                             break
                         offset = update.update_id + 1
                         try:
@@ -176,29 +158,30 @@ class BotWorker(BaseThread):
                     self.safe_emit(self.error_signal, f"Ошибка в цикле обновлений: {e.message}")
                     await asyncio.sleep(self.reconnect_delay)
             except asyncio.CancelledError:
-                self._running = False
+                self.running = False
                 break
             except Exception as e:
                 self.safe_emit(self.error_signal, f"Неизвестная ошибка в цикле обновлений: {e}")
                 await asyncio.sleep(self.reconnect_delay)
     async def bot_worker(self, *args):
         try:
-            if self.token in self._active_bots:
+            if self.token in BotWorker._active_bots:
                 self.safe_emit(self.log_signal, f"⚠️ Бот с токеном {self.token[:10]}... уже запущен")
                 return
-            self._active_bots.add(self.token)
+            BotWorker._active_bots.add(self.token)
             if await self.bot_manager.connect():
                 await self._setup_bot()
                 await self._process_updates()
             else:
                 self.safe_emit(self.log_signal, f"Не удалось запустить бота {self.token[:10]}")
         except asyncio.CancelledError:
-            pass
+            self.safe_emit(self.log_signal, f"Работа bot_worker для {self.bot_username} отменена.")
+            raise
         except Exception as e:
             self.safe_emit(self.error_signal, f"Критическая ошибка в работе бота {self.bot_username}: {e}")
         finally:
-            if self.token in self._active_bots:
-                self._active_bots.remove(self.token)
+            if self.token in BotWorker._active_bots:
+                BotWorker._active_bots.remove(self.token)
             if self.bot_manager.is_connected:
                 try:
                     await self.bot_manager.disconnect()
@@ -357,6 +340,7 @@ class AutoReplyAiogramWorker(QObject):
             self.safe_emit(self.log_signal, f"Ошибка при остановке ботов: {e}")
         finally:
             self._is_stopping = False
+
 class BotWindow(QWidget):
     def __init__(self, parent=None, *args):
         super().__init__(parent, *args)
@@ -539,7 +523,7 @@ class BotWindow(QWidget):
             self.progress_widget.update_progress(50, "Инициализация ботов...")
             self.auto_reply_worker = AutoReplyAiogramWorker(
                 self.selected_tokens, self.running_flag, proxy,
-                self.text_content, min_interval or 1, max_interval or 4,
+                self.text_content, min_interval, max_interval,
                 reply_to_all=self.reply_to_all_checkbox.isChecked()
             )
             self.auto_reply_worker.log_signal.connect(self.log_message)
@@ -572,20 +556,15 @@ class BotWindow(QWidget):
             self.stop_button.setEnabled(False)
             self.start_button.setEnabled(False)
             self.running_flag[0] = False
-            
             if self.auto_reply_worker:
                 self.auto_reply_worker.stop()
-                self.progress_widget.update_progress(50, "Останавливаем потоки...")
-            
+                self.progress_widget.update_progress(50, "Останавливаем потоки...")      
             QTimer.singleShot(1000, lambda: self._finish_stop_process())
-            
         except Exception as e:
             self.log_message(f"Критическая ошибка при остановке процесса: {e}")
             self.start_button.setEnabled(True)
             self.stop_button.setEnabled(False)
-    
-    def _finish_stop_process(self):
-        """Метод для завершения остановки процесса в главном потоке"""
+    def _finish_stop_process(self, *args):
         self.auto_reply_worker = None
         import gc
         gc.collect()

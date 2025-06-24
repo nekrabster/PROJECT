@@ -484,6 +484,7 @@ class BotWindow(QWidget):
             self.log_message("⛔ Загрузите токены ботов")
             return
         self.log_output.clear()
+        self.stats_list.clear()
         self.log_message("✅ Начинаем запуск ботов...")
         try:
             error_text = None

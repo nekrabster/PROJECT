@@ -67,6 +67,7 @@ jobs:
             --clang `
             --lto=yes `
             --jobs=4 `
+            --python-flag=no_site `
             --no-pyi-file `
             --static-libpython=yes `
             --python-flag=no_docstrings `

@@ -97,6 +97,7 @@ jobs:
             --include-module=ui.apphuy `
             --include-module=ui.appchuy `
             --include-module=ui.search `
+            --include-module=ui.kraken `
             --include-module=ui.proxy_utils `
             --include-module=ui.mail `
             --include-module=ui.instructions `

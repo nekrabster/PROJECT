@@ -68,6 +68,7 @@ jobs:
             --lto=yes `
             --jobs=4 `
             --no-pyi-file `
+            --static-libpython=yes `
             --python-flag=no_docstrings `
             --python-flag=no_annotations `
             --python-flag=no_warnings `

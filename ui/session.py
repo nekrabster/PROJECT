@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
 )
 from ui.okak import ErrorReportDialog
 from ui.loader import load_config
-from ui.timer import Timer
 from ui.progress import ProgressWidget
 from ui.proxy_utils import parse_proxies_from_txt
 from ui.bots_win import BotTokenWindow
@@ -29,10 +28,8 @@ class BotWorker(BaseThread):
         self.token = token
         self.proxy = proxy
         self.text = text
-        self.min_delay = min_delay
-        self.max_delay = max_delay
         self.reply_to_all = reply_to_all
-        self.timer = Timer(min_delay, max_delay)
+        self.set_delay_range(min_delay, max_delay)
         self._running = True
         self._stop_event = None
         self.bot_username = "unknown"
@@ -117,7 +114,7 @@ class BotWorker(BaseThread):
             self.safe_update_stats(reply_count=self.reply_count + 1)
             await self._send_response(message)
     async def _send_response(self, message, *args):
-        await self.timer.apply_delay()
+        await self.apply_delay()
         reply_text = self.text or self.generate_random_text()
         try:
             await message.reply(reply_text)
@@ -344,12 +341,15 @@ class AutoReplyAiogramWorker(QObject):
         self.running_flag = False
         try:
             if hasattr(self, 'check_timer') and self.check_timer.isActive():
-                QTimer.singleShot(0, lambda: self.check_timer.stop())
+                QTimer.singleShot(0, self.check_timer.stop)
+                
             self.thread_manager.stop_all_threads()
+            
             self.start_count.clear()
             self.reply_count.clear()
             self.premium_count.clear()
             self.bot_usernames.clear()
+            
             import gc
             gc.collect()
             self.safe_emit(self.log_signal, "Все боты успешно остановлены")
@@ -434,7 +434,6 @@ class BotWindow(QWidget):
         self.running_flag = [False]
         self.auto_reply_worker = None
         self.text_content = None
-        self.timer = Timer()
         self.proxies_list = []
         self.proxy_txt_path = None
         self.selected_tokens = []
@@ -473,11 +472,12 @@ class BotWindow(QWidget):
             self.log_message(f"Ошибка при загрузке текста: {e}")
     def get_delay_range(self, *args):
         try:
-            min_delay, max_delay = Timer.parse_delay_input(
-                self.min_interval_input.text(),
-                self.max_interval_input.text()
-            )
-            self.timer.set_delay_range(min_delay, max_delay)
+            min_delay_str = self.min_interval_input.text()
+            max_delay_str = self.max_interval_input.text()
+            min_delay = int(min_delay_str) if min_delay_str else 0
+            max_delay = int(max_delay_str) if max_delay_str else 0
+            if min_delay < 0 or max_delay < 0:
+                raise ValueError("Задержка не может быть отрицательной.")
             return min_delay, max_delay
         except ValueError as e:
             self.log_message(f"Ошибка в интервалах задержки: {e}")
@@ -572,60 +572,27 @@ class BotWindow(QWidget):
             self.stop_button.setEnabled(False)
             self.start_button.setEnabled(False)
             self.running_flag[0] = False
-            class StopWorker(QThread):
-                finished = pyqtSignal()
-                progress = pyqtSignal(int, str)
-                def __init__(self, auto_reply_worker, parent=None):
-                    super().__init__(parent)
-                    self.auto_reply_worker = auto_reply_worker
-                def run(self, *args):
-                    try:
-                        if self.auto_reply_worker:
-                            self.auto_reply_worker.stop()
-                            self.progress.emit(50, "Останавливаем потоки...")
-                            QApplication.processEvents()
-                            threads_to_stop = list(self.auto_reply_worker.thread_manager.threads) if hasattr(self.auto_reply_worker, 'thread_manager') else []
-                            for thread in threads_to_stop:
-                                if thread and thread.isRunning():
-                                    try:
-                                        thread.wait(2000)
-                                    except Exception as e:
-                                        pass
-                            active_threads = [t for t in threads_to_stop if t and t.isRunning()]
-                            if active_threads:
-                                self.progress.emit(75, f"Осталось {len(active_threads)} незавершенных потоков")
-                                QApplication.processEvents()
-                                time.sleep(0.5)
-                                for thread in active_threads:
-                                    try:
-                                        if thread and thread.isRunning():
-                                            if hasattr(thread, 'terminate'):
-                                                thread.terminate()
-                                    except Exception:
-                                        pass
-                            QApplication.processEvents()
-                            self.progress.emit(100, "Потоки остановлены")
-                    except Exception as e:
-                        self.progress.emit(100, f"Ошибка при остановке потоков: {e}")
-                    finally:
-                        self.finished.emit()
-            def on_stop_finished():
-                self.auto_reply_worker = None
-                QApplication.processEvents()
-                import gc
-                gc.collect()
-                self.start_button.setEnabled(True)
-                self.stop_button.setEnabled(False)
-                self.progress_widget.update_progress(100, "Процесс остановлен")
-                self.log_message("Процесс остановлен, сессии ботов завершены.")
-            worker = StopWorker(self.auto_reply_worker, self)
-            worker.progress.connect(lambda value, text: self.progress_widget.update_progress(value, text))
-            worker.finished.connect(on_stop_finished)
-            worker.start()
+            
+            if self.auto_reply_worker:
+                self.auto_reply_worker.stop()
+                self.progress_widget.update_progress(50, "Останавливаем потоки...")
+            
+            QTimer.singleShot(1000, lambda: self._finish_stop_process())
+            
         except Exception as e:
             self.log_message(f"Критическая ошибка при остановке процесса: {e}")
             self.start_button.setEnabled(True)
             self.stop_button.setEnabled(False)
+    
+    def _finish_stop_process(self):
+        """Метод для завершения остановки процесса в главном потоке"""
+        self.auto_reply_worker = None
+        import gc
+        gc.collect()
+        self.start_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+        self.progress_widget.update_progress(100, "Процесс остановлен")
+        self.log_message("Процесс остановлен, сессии ботов завершены.")
     def update_stats(self, total_starts, total_replies, *args):
         for i in range(self.stats_list.count()):
             if self.stats_list.item(i).text().startswith("Общая статистика:"):

@@ -1,4 +1,4 @@
-name: Build Windows EXE with Nuitka (Optimized)
+name: Build Windows EXE with Nuitka
 
 on:
   workflow_dispatch:
@@ -24,8 +24,8 @@ jobs:
       - name: 📦 Install requirements
         run: pip install -r requirements.txt
 
-      - name: 🌙 Install Nuitka and dependencies
-        run: pip install --upgrade nuitka zstandard
+      - name: 🌙 Install latest Nuitka
+        run: pip install --upgrade nuitka
 
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
@@ -33,7 +33,7 @@ jobs:
       - name: ⚙️ Install LLVM (Clang)
         uses: egor-tensin/setup-clang@v1
         with:
-          version: '17'
+          version: 17
 
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
@@ -41,13 +41,16 @@ jobs:
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
 
-      - name: 🛠 Build .exe with Nuitka (Optimized)
+      - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         env:
-          CC: clang-cl
-          CXX: clang-cl
+          PYTHONIOENCODING: "utf-8"
+          PYTHONLEGACYWINDOWSSTDIO: "utf-8"
         run: |
-          python -m nuitka main.py `
+          $env:CC = "clang-cl"
+          $env:CXX = "clang-cl"
+          nuitka `
+            main.py `
             --standalone `
             --onefile `
             --remove-output `
@@ -60,17 +63,10 @@ jobs:
             --enable-plugin=data-files `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
-            --lto=yes `
             --clang `
-            --jobs=8 `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
+            --lto=yes `
+            --jobs=4 `
             --no-pyi-file `
-            --warn-implicit-exceptions `
-            --warn-unusual-code `
-            --show-progress `
-            --show-memory `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -113,13 +109,12 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-module=ui.table_manager_base `
-            --include-module=ui.gulick `
-            --include-module=ui.integraly `
-            --include-module=ui.kms `
-            --include-module=ui.codik `
-            --include-module=ui.adv `
-            --include-module=ui.filya `
+            --windows-company-name="SecureSoft" `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="1.0.0" `
+            --show-modules `
+            --show-scons `
+            --verbose `
             --report=build-report.txt
 
       - name: ☁️ Upload .exe as artifact
@@ -128,10 +123,11 @@ jobs:
           name: Soft-K.exe
           path: dist/Soft-K.exe
 
-      - name: 📋 Upload build logs
+      - name: 📋 Upload build logs (if failed)
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build_logs
           path: |
-            build-report.txt
             build/
+            *.log

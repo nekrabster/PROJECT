@@ -35,13 +35,11 @@ jobs:
           update: true
           pacman: >-
             mingw-w64-x86_64-toolchain
-
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         env:
@@ -65,13 +63,11 @@ jobs:
             --lto=yes `
             --jobs=4 `
             --no-pyi-file `
-            --no-asserts `
-            --remove-debug `
+            --python-flag=no_asserts `
             --python-flag=no_docstrings `
             --python-flag=no_annotations `
             --python-flag=no_warnings `
             --disable-ccache `
-            --disable-console `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -122,7 +118,6 @@ jobs:
             --macos-create-app-bundle=no `
             --show-modules `
             --verbose
-
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

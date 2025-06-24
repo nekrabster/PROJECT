@@ -65,8 +65,7 @@ jobs:
             --include-data-files=icons/*.png=icons/ `
             --include-data-files=icons/*.ico=icons/ `
             --clang `
-            --lto=yes `
-            --pgo `
+            --lto=thin `
             --jobs=4 `
             --no-pyi-file `
             --no-asserts `
@@ -74,7 +73,6 @@ jobs:
             --python-flag=no_docstrings `
             --python-flag=no_annotations `
             --python-flag=no_warnings `
-            --static-libpython=no `
             --disable-ccache `
             --disable-console `
             --include-module=ui.rudich `
@@ -124,13 +122,12 @@ jobs:
             --windows-product-name="Soft-K" `
             --windows-product-version="1.0.0" `
             --show-scons `
-            --opt-level=3 `
             --macos-create-app-bundle=no `
             --msvc-targets-arch=x86_64 `
             --clang-debug-level=0 `
             --clang-execution-engine=no `
             --clang-disable-crt-warnings `
-            --clang-optimization-level=3 `
+            --clang-optimization-level=O3 `
             --show-modules `
             --verbose
 

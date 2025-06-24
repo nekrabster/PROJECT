@@ -1,4 +1,4 @@
-name: Build Windows EXE с максимальной оптимизацией
+name: Build Windows EXE with Nuitka
 
 on:
   workflow_dispatch:
@@ -17,13 +17,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13.2'
-          cache: 'pip'
 
       - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
-
-      - name: 🔧 Install compatible Pillow version
-        run: pip install "Pillow>=10.0.0,<12.0.0"
 
       - name: 📦 Install requirements
         run: pip install -r requirements.txt
@@ -44,7 +40,6 @@ jobs:
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         env:
@@ -53,24 +48,25 @@ jobs:
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-          python -m nuitka main.py `
+          nuitka `
+            main.py `
             --standalone `
             --onefile `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
-            --windows-disable-console `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
             --assume-yes-for-downloads `
+            --disable-console `
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
-            --include-data-files=icons/*.png=icons/ `
-            --include-data-files=icons/*.ico=icons/ `
+            --include-data-dir=icons=icons `
+            --clang `
+            --lto=yes `
+            --jobs=4 `
+            --no-pyi-file `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -85,6 +81,7 @@ jobs:
             --include-module=ui.sim_manager `
             --include-module=ui.session_win `
             --include-module=ui.bombardo `
+            --include-module=ui.kraken `
             --include-module=ui.okak `
             --include-module=ui.rass `
             --include-module=ui.timer `
@@ -93,7 +90,6 @@ jobs:
             --include-module=ui.apphuy `
             --include-module=ui.appchuy `
             --include-module=ui.search `
-            --include-module=ui.kraken `
             --include-module=ui.proxy_utils `
             --include-module=ui.mail `
             --include-module=ui.instructions `
@@ -114,21 +110,10 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --include-module=warnings `
-            --include-module=logging `
-            --include-module=PIL `
-            --include-module=PIL.Image `
-            --include-module=PIL.TiffTags `
-            --nofollow-import-to=test,tests,examples,setuptools,distutils `
-            --python-flag=no_docstrings `
-            --python-flag=no_annotations `
-            --python-flag=-OO `
-            --clang `
-            --lto=yes `
-            --jobs=4 `
-            --experimental=use_pefile `
-            --show-modules `
-
+            --windows-company-name="SecureSoft" `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="2.3.6" `
+            --report=build-report.txt
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -143,4 +128,3 @@ jobs:
           path: |
             build/
             *.log
-            build-report.txt

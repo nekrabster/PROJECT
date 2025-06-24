@@ -120,8 +120,6 @@ jobs:
             --windows-product-name="Soft-K" `
             --windows-product-version="1.0.0" `
             --show-scons `
-            --clang-disable-crt-warnings `
-            --clang-optimization-level=3 `
             --show-modules `
             --verbose
 

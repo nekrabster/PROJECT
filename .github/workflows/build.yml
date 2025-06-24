@@ -1,4 +1,4 @@
-name: Build Fast EXE with Nuitka (Clang + LTO + Manual Modules)
+name: Build Windows EXE with Nuitka (Optimized)
 
 on:
   workflow_dispatch:
@@ -7,70 +7,76 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     steps:
-      - name: 🧾 Checkout repository
+      - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13
+      - name: 🐍 Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          cache: 'pip'
 
-      - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install --upgrade nuitka
+      - name: 🆙 Upgrade pip
+        run: python -m pip install --upgrade pip
 
-      - name: ⚙️ Setup MSVC
+      - name: 📦 Install requirements
+        run: pip install -r requirements.txt
+
+      - name: 🌙 Install Nuitka and dependencies
+        run: pip install --upgrade nuitka zstandard
+
+      - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: 🧰 Install Clang 17
+      - name: ⚙️ Install LLVM (Clang)
         uses: egor-tensin/setup-clang@v1
         with:
-          version: 17
+          version: '17'
 
-      - name: 🔍 Find certifi path
+      - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
 
-      - name: 🚀 Build optimized .exe with Nuitka
+      - name: 🛠 Build .exe with Nuitka (Optimized)
         shell: pwsh
         env:
-          CC: "clang-cl"
-          CXX: "clang-cl"
+          CC: clang-cl
+          CXX: clang-cl
         run: |
           python -m nuitka main.py `
             --standalone `
             --onefile `
             --remove-output `
             --output-dir=dist `
-            --output-filename=Soft-K.exe `
+            --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
+            --assume-yes-for-downloads `
+            --follow-imports `
+            --enable-plugin=pyqt6 `
+            --enable-plugin=data-files `
+            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
+            --include-data-dir=icons=icons `
+            --lto=yes `
+            --clang `
+            --jobs=8 `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version="1.0.0" `
-            --clang `
-            --lto=yes `
-            --jobs=4 `
-            --enable-plugin=pyqt6 `
-            --enable-plugin=data-files `
-            --include-data-dir=icons=icons `
-            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --no-pyi-file `
-            --follow-imports `
-            --assume-yes-for-downloads `
+            --warn-implicit-exceptions `
+            --warn-unusual-code `
+            --show-progress `
+            --show-memory `
             --include-module=ui.rudich `
-            --include-module=ui.bombardirocrocodilo `
             --include-module=ui.complas `
             --include-module=ui.components `
             --include-module=ui.malining `
             --include-module=ui.malina `
+            --include-module=ui.bombardirocrocodilo `
             --include-module=ui.newtoken `
             --include-module=ui.kachok `
             --include-module=ui.session `
@@ -107,13 +113,25 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --show-modules `
-            --show-progress `
-            --verbose
+            --include-module=ui.table_manager_base `
+            --include-module=ui.gulick `
+            --include-module=ui.integraly `
+            --include-module=ui.kms `
+            --include-module=ui.codik `
+            --include-module=ui.adv `
+            --include-module=ui.filya `
+            --report=build-report.txt
 
-      - name: ☁️ Upload .exe artifact
+      - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe
           path: dist/Soft-K.exe
-          retention-days: 3
+
+      - name: 📋 Upload build logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: build_logs
+          path: |
+            build-report.txt
+            build/

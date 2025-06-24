@@ -1,6 +1,6 @@
 import os, asyncio, random, string, time
 from aiogram.exceptions import TelegramForbiddenError
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject, QMutex, QMutexLocker, QTimer, QThreadPool
+from PyQt6.QtCore import QThread, pyqtSignal, QObject, QMutex, QMutexLocker, QTimer, QThreadPool
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QCheckBox, QTextEdit,
     QGroupBox, QFileDialog, QSizePolicy,
@@ -113,12 +113,15 @@ class BotWorker(BaseThread):
         try:
             await message.reply(reply_text)
         except Exception as e:
-            if "message to be replied not found" in str(e):
+            error_msg = str(e).lower()
+            if "message to be replied not found" in error_msg:
                 self.safe_emit(self.log_signal, f"❗ Сообщение для ответа не найдено. Отправляю без reply. Подробнее: {e}")
                 try:
                     await message.answer(reply_text)
                 except Exception as e2:
                     self.safe_emit(self.log_signal, f"❗ Не удалось отправить сообщение даже без reply: {e2}")
+            elif "have no write access to the chat" in error_msg:
+                self.safe_emit(self.log_signal, f"⛔ Нет прав на запись в чат: {message.chat.id}")
             else:
                 raise
         self._update_stats_and_log()
@@ -161,6 +164,8 @@ class BotWorker(BaseThread):
         err_str = str(error).lower()
         if "message to be replied not found" in err_str:
             self.safe_emit(self.log_signal, f"❗ Сообщение для ответа не найдено. Подробнее: {error}")
+        elif "have no write access to the chat" in err_str:
+            self.safe_emit(self.log_signal, f"⛔ Нет прав на запись в чат. Подробнее: {error}")
         elif any(x in err_str for x in ["ssl", "certificate", "handshake"]):
             raise
         elif "timed out" in err_str:
@@ -168,7 +173,7 @@ class BotWorker(BaseThread):
         elif "bad gateway" in err_str:
             self.safe_emit(self.log_signal, f"❗ Проблема на стороне Telegram (Bad Gateway): {error}")
         else:
-            self.safe_emit(self.error_signal, f"Ошибка при обработке сообщения: {error}")
+            self.safe_emit(self.error_signal, f"Ошибка при обработке сообщения (тип: {type(error).__name__}): {error}")
     async def _handle_general_error(self, error, *args):
         error_str = str(error).lower()
         if "unauthorized" in error_str:
@@ -229,17 +234,18 @@ class BotWorker(BaseThread):
     async def save_user_id(self, user_id, *args):
         try:
             import aiofiles
-            users_folder = os.path.join(os.getcwd(), "users_bot")
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+            users_folder = os.path.join(project_root, "users_bot")
             os.makedirs(users_folder, exist_ok=True)
             users_file_path = os.path.join(users_folder, f"{self.bot_username}.txt")
             if not os.path.exists(users_file_path):
-                async with aiofiles.open(users_file_path, 'w') as f:
+                async with aiofiles.open(users_file_path, 'w', encoding='utf-8') as f:
                     await f.write(f"{self.token}\n")
-            async with aiofiles.open(users_file_path, 'r') as f:
+            async with aiofiles.open(users_file_path, 'r', encoding='utf-8') as f:
                 lines = await f.readlines()
             existing_ids = set(line.strip() for line in lines[1:])
             if str(user_id) not in existing_ids:
-                async with aiofiles.open(users_file_path, 'a') as f:
+                async with aiofiles.open(users_file_path, 'a', encoding='utf-8') as f:
                     await f.write(f"{user_id}\n")
         except Exception as e:
             self.safe_emit(self.error_signal, f"Ошибка при сохранении user_id: {e}")
@@ -572,7 +578,7 @@ class BotWindow(QWidget):
     def handle_thread_error(self, error_message, *args):
         self.log_message(f"Ошибка: {error_message}")
         try:
-            ErrorReportDialog.send_error_report(self, error_text=error_message, *args)
+            ErrorReportDialog.send_error_report(error_message)
             msg_label = QLabel(f"Произошла ошибка: {error_message}")
             msg_label.setWordWrap(True)
             QTimer.singleShot(100, lambda: self.log_message("Отчет об ошибке отправлен"))

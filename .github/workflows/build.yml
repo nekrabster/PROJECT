@@ -123,7 +123,6 @@ jobs:
             --jobs=0 `
             --python-flag=no_docstrings `
             --python-flag=no_annotations `
-            --python-flag=no_debug `
             --nofollow-import-to=tests,examples,setuptools,distutils,unittest,pytest `
             --experimental=use_pefile `
             --experimental=use_bundled_includes `

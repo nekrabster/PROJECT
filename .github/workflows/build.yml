@@ -22,6 +22,9 @@ jobs:
       - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
 
+      - name: 🔧 Install compatible Pillow version
+        run: pip install "Pillow>=10.0.0,<12.0.0"
+
       - name: 📦 Install requirements
         run: pip install -r requirements.txt
 
@@ -41,15 +44,13 @@ jobs:
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
+
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
         run: |
-          # Понижаем версию Pillow для совместимости с Nuitka
-          pip install "Pillow==10.4.0" --force-reinstall
-          
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
           python -m nuitka main.py `
@@ -70,25 +71,6 @@ jobs:
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-files=icons/*.png=icons/ `
             --include-data-files=icons/*.ico=icons/ `
-            --include-package=telethon `
-            --include-package=telethon.tl `
-            --include-package=telethon.tl.types `
-            --include-package=telethon.tl.functions `
-            --include-package=telethon.client `
-            --include-package=telethon.errors `
-            --include-package=telethon.sessions `
-            --include-package=telethon.crypto `
-            --include-package=telethon.network `
-            --include-package=telethon.helpers `
-            --include-package=telethon.extensions `
-            --include-package=PIL `
-            --include-package=PIL.Image `
-            --include-package=PIL.TiffTags `
-            --include-package=PIL.ImageFile `
-            --include-package=PIL.JpegImagePlugin `
-            --include-package=PIL.PngImagePlugin `
-            --include-package=pyaes `
-            --include-package=rsa `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -134,20 +116,21 @@ jobs:
             --include-module=ui.decorators `
             --include-module=warnings `
             --include-module=logging `
-            --nofollow-import-to=PIL.ImageQt `
-            --nofollow-import-to=PIL.ImageTk `
+            --include-module=PIL `
+            --include-module=PIL.Image `
+            --include-module=PIL.TiffTags `
+            --nofollow-import-to=test,tests,examples,setuptools,distutils `
+            --python-flag=no_docstrings `
+            --python-flag=no_annotations `
+            --python-flag=-OO `
             --clang `
             --lto=yes `
             --jobs=4 `
-            --python-flag=no_docstrings `
-            --python-flag=no_annotations `
-            --nofollow-import-to=tests,examples,setuptools `
             --experimental=use_pefile `
-            --experimental=use_bundled_includes `
             --show-scons `
             --show-modules `
             --verbose
-            
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

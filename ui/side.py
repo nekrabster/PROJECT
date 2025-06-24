@@ -277,6 +277,7 @@ class SideBar:
         single_buttons = [
             ("Поиск", "icons/icon100.png", "search"),
             ("Прокси", "icons/icon101.png", "samit"),
+            ("Мониторинг", "icons/icon99.png", "kraken"),
             ("Почта", "icons/icon102.png", "mail")
         ]
         self._sidebar_sections_widgets = []

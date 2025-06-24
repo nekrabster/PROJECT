@@ -1,4 +1,4 @@
-name: Build Windows EXE with Nuitka (Clang + LTO)
+name: Build Windows EXE with Nuitka (Clang + LTO + Parallel)
 
 on:
   workflow_dispatch:
@@ -7,10 +7,11 @@ on:
 
 jobs:
   build:
+    # Используем Windows 2022 для гарантированного наличия Clang и MSVC Dev Cmd
     runs-on: windows-2022
 
     steps:
-      - name: 🧾 Checkout repository
+      - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
       - name: 🐍 Setup Python 3.13 (кеш pip)
@@ -23,9 +24,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # Обязательно последняя версия Nuitka
           pip install --upgrade nuitka
 
-      - name: 🧰 Setup MSVC Dev Cmd (для среды сборки)
+      - name: 🧰 Setup MSVC Dev Cmd (Windows SDK)
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: ⚙️ Install LLVM/Clang 17
@@ -33,32 +35,41 @@ jobs:
         with:
           version: 17
 
-      - name: 🔧 Build .exe with Nuitka (Clang + LTO)
+      - name: 🔍 Find certifi cacert.pem
+        id: certifi_path
+        shell: bash
+        run: |
+          echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
+
+      - name: 🔧 Build .exe with Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
+          # Переключаемся на clang-cl вместо MSVC
           CC: "clang-cl"
           CXX: "clang-cl"
         run: |
           python -m nuitka main.py `
-            --onefile `
-            --standalone `
-            --clang `
-            --lto=yes `
-            --jobs=$(Get-Process | Measure-Object).Count `
-            --enable-plugin=pyqt6 `
-            --enable-plugin=data-files `
-            --include-package=ui `
-            --include-data-dir=icons=icons `
-            --include-data-file="$(python -c 'import certifi;print(certifi.where())')=certifi/cacert.pem" `
-            --windows-icon-from-ico=icon.ico `
+            --standalone `                         # автономный .exe
+            --onefile `                            # упаковать всё в один .exe
+            --clang `                              # использовать clang-cl
+            --lto=yes `                            # link-time optimizations
+            --jobs=$(Get-ComputerInfo | Select-Object -Expand CpuLogicalProcessorCount) `  
+                                                  # параллельная компиляция по всем логическим ядрам
+            --enable-plugin=pyqt6 `               # плагин для PyQt6
+            --enable-plugin=data-files `          # автоподключение ресурсов
+            --include-package=ui `                # все ваши модули UI
+            --include-data-dir=icons=icons `      # папка с png/ico
+            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
+                                                  # сертификаты для HTTPS
+            --windows-icon-from-ico=icon.ico `    # иконка exe
             --output-dir=dist `
             --output-filename=Soft-K.exe `
-            --remove-output `
+            --remove-output `                     # чистим dist перед сборкой
             --follow-imports `
             --assume-yes-for-downloads `
-            --verbose
+            --verbose                             # подробный лог
 
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4

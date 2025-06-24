@@ -3,7 +3,7 @@ class StyleManager:
     def get_theme_default_colors(is_dark):
         if is_dark:
             return {
-                'bg': "qradialgradient(cx:0.3, cy:0.5, radius:1.1, fx:0.3, fy:0.5, stop:0 rgba(120,255,240,90), stop:0.12 rgba(80,220,200,140), stop:0.25 rgba(60,160,150,180), stop:0.40 rgba(40,110,120,200), stop:0.60 rgba(25,60,80,220), stop:0.80 rgba(15,30,40,240), stop:1 rgba(10,15,25,255))",                
+                'bg': "qradialgradient(cx:0.3, cy:0.5, radius:1.1, fx:0.3, fy:0.5, stop:0 rgba(120,255,240,210), stop:0.12 rgba(80,220,200,220), stop:0.25 rgba(60,160,150,230), stop:0.40 rgba(40,110,120,240), stop:0.60 rgba(25,60,80,245), stop:0.80 rgba(15,30,40,250), stop:1 rgba(10,15,25,255))",                
                 'fg': '#EAECEE',
                 '_btn_bg': '#5DADE2',
                 '_btn_hover': '#3498DB',

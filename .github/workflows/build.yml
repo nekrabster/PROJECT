@@ -56,9 +56,6 @@ jobs:
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
             --assume-yes-for-downloads `
             --follow-imports `
             --enable-plugin=pyqt6 `
@@ -66,6 +63,16 @@ jobs:
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-files=icons/*.png=icons/ `
             --include-data-files=icons/*.ico=icons/ `
+            --clang `
+            --lto=yes `
+            --jobs=4 `
+            --python-flag=no_site `
+            --static-libpython=yes `
+            --python-flag=no_docstrings `
+            --python-flag=no_annotations `
+            --python-flag=no_warnings `
+            --static-libpython=no `
+            --disable-ccache `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -109,15 +116,9 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --clang `
-            --lto=yes `
-            --jobs=4 `
-            --python-flag=no_docstrings `
-            --python-flag=no_annotations `
-            --python-flag=no_warnings `
-            --nofollow-import-to=tests,examples,setuptools `
-            --experimental=use_pefile `
-            --experimental=use_bundled_includes `
+            --windows-company-name="SecureSoft" `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="1.0.0" `
             --show-scons `
             --show-modules `
             --verbose

@@ -97,14 +97,15 @@ def handle_aiogram_errors(func: Callable) -> Callable:
             error = AiogramErrorHandler.classify_error(e, user_id=user_id, username=username)
             token = getattr(self, 'token', 'Unknown')
             error_msg = AiogramErrorHandler.format_error_message(token, error)
+            logger = logging.getLogger(self.__class__.__name__)
+            logger.error(f"Aiogram API error in {func.__name__} for bot {token[:10]}...: {error_msg}", exc_info=True)
             if hasattr(self, 'log_signal'):
                 self.log_signal.emit(error_msg)
             if hasattr(self, 'error_signal'):
                 self.error_signal.emit(token, error)
             if hasattr(self, 'flood_wait_signal') and error.type == AiogramErrorType.FLOOD_WAIT:
                 self.flood_wait_signal.emit(token, error.wait_time or 0)
-            logging.getLogger(self.__class__.__name__).error(f"Aiogram API error: {error_msg}", exc_info=e)
-            raise AiogramCustomError(error.type, error_msg, error.wait_time, user_id=user_id, username=username)
+            raise AiogramCustomError(error.type, error_msg, error.wait_time, user_id=user_id, username=username) from e
     return wrapper
 class AiogramBotConnection(QObject):
     log_signal = pyqtSignal(str)
@@ -159,7 +160,7 @@ class AiogramBotConnection(QObject):
                 self._logger.error(f"Ошибка при отключении: {str(e)}")
         self._running = False
     @handle_aiogram_errors
-    async def reconnect(self):
+    async def reconnect(self, *args):
         for attempt in range(self._reconnect_attempts):
             try:
                 await self.disconnect()

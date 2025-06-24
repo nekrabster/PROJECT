@@ -1,4 +1,4 @@
-name: Build Windows EXE with Nuitka
+name: Build Windows EXE с Nuitka (OneFile + Clang + Оптимизации)
 
 on:
   workflow_dispatch:
@@ -10,32 +10,46 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: 🧾 Checkout code
+      - name: 🧾 Checkout кода
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.13
+      - name: 🐍 Установка Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
 
-      - name: 🆙 Upgrade pip
+      - name: 🆙 Обновление pip
         run: python -m pip install --upgrade pip
 
-      - name: 📦 Install requirements
+      - name: 📦 Установка зависимостей
         run: pip install -r requirements.txt
 
-      - name: 🌙 Install latest Nuitka
+      - name: 🌙 Установка последней версии Nuitka
         run: pip install --upgrade nuitka
 
-      - name: 🔍 Find certifi cacert.pem path
+      - name: 🧰 Настройка MSVC для Clang
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: ⚙️ Установка LLVM (Clang)
+        uses: egor-tensin/setup-clang@v1
+        with:
+          version: 17
+
+      - name: 🔍 Определение пути к certifi cacert.pem
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
 
-      - name: 🛠 Build .exe with Nuitka
+      - name: 🛠 Сборка .exe с Nuitka
         shell: pwsh
+        env:
+          PYTHONIOENCODING: "utf-8"
+          PYTHONLEGACYWINDOWSSTDIO: "utf-8"
         run: |
+          $env:CC = "clang-cl"
+          $env:CXX = "clang-cl"
           nuitka `
             main.py `
             --standalone `
@@ -44,14 +58,19 @@ jobs:
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
+            --windows-company-name="SecureSoft" `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="1.0.0" `
             --assume-yes-for-downloads `
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --include-module=ui.rudich `
             --lto=yes `
             --clang `
             --jobs=4 `
+            --no-pyi-file `
+            --show-scons `
+            --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
             --include-module=ui.malining `
@@ -95,12 +114,9 @@ jobs:
             --include-module=ui.decorators `
             --include-data-files=icons/*.png=icons/ `
             --include-data-files=icons/*.ico=icons/ `
-            --follow-imports `
-            --assume-yes-for-downloads `
-            --show-scons `
             --verbose
 
-      - name: 📋 Upload build logs (if failed)
+      - name: 📋 Загрузка логов сборки (при ошибке)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -108,3 +124,10 @@ jobs:
           path: |
             build/
             *.log
+
+      - name: ☁️ Загрузка .exe как артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: Soft-K.exe
+          path: dist/Soft-K.exe
+          retention-days: 1

@@ -1,4 +1,6 @@
 import os, asyncio, random, string, time
+import aiofiles
+import aiofiles.os as aio_os
 from aiogram.exceptions import TelegramForbiddenError
 from PyQt6.QtCore import QThread, pyqtSignal, QObject, QMutex, QMutexLocker, QTimer, QThreadPool
 from PyQt6.QtWidgets import (
@@ -47,6 +49,13 @@ class BotWorker(BaseThread):
         self.bot_manager = AiogramBotConnection(token, proxy)
         self.bot_manager.log_signal.connect(self.log_signal.emit)
         self.bot_manager.error_signal.connect(lambda t, e: self.error_signal.emit(f"{t}: {e.message}"))
+        self._file_locks = {}
+        self._file_lock_mutex = asyncio.Lock()
+    async def _get_file_lock(self, path):
+        async with self._file_lock_mutex:
+            if path not in self._file_locks:
+                self._file_locks[path] = asyncio.Lock()
+            return self._file_locks[path]
     def safe_emit(self, signal, *args):
         with QMutexLocker(self.mutex):
             signal.emit(*args)
@@ -223,6 +232,8 @@ class BotWorker(BaseThread):
                     await self.bot_manager.disconnect()
                 except Exception:
                     pass
+            async with self._file_lock_mutex:
+                self._file_locks.clear()
             if self.bot_username != "unknown":
                 self.safe_emit(self.log_signal, f"Бот {self.bot_username} остановлен")
             else:
@@ -233,22 +244,28 @@ class BotWorker(BaseThread):
         return await self.bot_manager.check_connection()
     async def save_user_id(self, user_id, *args):
         try:
-            import aiofiles
+            if not self.bot_username or self.bot_username == "unknown":
+                self.safe_emit(self.log_signal, f"⚠️ Не удалось сохранить user_id {user_id}: имя бота ({self.bot_username}) не определено.")
+                return
             project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
             users_folder = os.path.join(project_root, "users_bot")
-            os.makedirs(users_folder, exist_ok=True)
+            await aio_os.makedirs(users_folder, exist_ok=True)
             users_file_path = os.path.join(users_folder, f"{self.bot_username}.txt")
-            if not os.path.exists(users_file_path):
-                async with aiofiles.open(users_file_path, 'w', encoding='utf-8') as f:
-                    await f.write(f"{self.token}\n")
-            async with aiofiles.open(users_file_path, 'r', encoding='utf-8') as f:
-                lines = await f.readlines()
-            existing_ids = set(line.strip() for line in lines[1:])
-            if str(user_id) not in existing_ids:
+            lock = await self._get_file_lock(users_file_path)
+            async with lock:
+                file_exists = await aio_os.path.exists(users_file_path)
+                if file_exists:
+                    async with aiofiles.open(users_file_path, 'r', encoding='utf-8') as f:
+                        lines = await f.readlines()
+                    existing_ids = set(line.strip() for line in lines[1:])
+                    if str(user_id) in existing_ids:
+                        return
                 async with aiofiles.open(users_file_path, 'a', encoding='utf-8') as f:
+                    if not file_exists:
+                        await f.write(f"{self.token}\n")
                     await f.write(f"{user_id}\n")
         except Exception as e:
-            self.safe_emit(self.error_signal, f"Ошибка при сохранении user_id: {e}")
+            self.safe_emit(self.error_signal, f"Ошибка при сохранении user_id для бота {self.bot_username}: {e}")
     def generate_random_text(self, *args):
         return ''.join(random.choices(string.ascii_letters + string.digits, k=32))
     def safe_update_stats(self, start_count=None, reply_count=None, premium_count=None, *args):

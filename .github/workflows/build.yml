@@ -28,24 +28,28 @@ jobs:
       - name: 🌙 Install latest Nuitka
         run: pip install --upgrade nuitka
 
-      - name: 🔧 Set up MinGW64
-        uses: msys2/setup-msys2@v2
+      - name: 🧰 Setup MSVC for Clang
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: ⚙️ Install LLVM (Clang)
+        uses: egor-tensin/setup-clang@v1
         with:
-          msystem: MINGW64
-          update: true
-          pacman: >-
-            mingw-w64-x86_64-toolchain
+          version: 17
+
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
+
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
         run: |
+          $env:CC = "clang-cl"
+          $env:CXX = "clang-cl"
           python -m nuitka main.py `
             --standalone `
             --onefile `
@@ -53,21 +57,18 @@ jobs:
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
+            --windows-company-name="SecureSoft" `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="1.0.0" `
             --assume-yes-for-downloads `
             --follow-imports `
+            --no-pyi-file `
             --enable-plugin=pyqt6 `
+            --enable-plugin=qt-plugins `
             --enable-plugin=data-files `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-files=icons/*.png=icons/ `
             --include-data-files=icons/*.ico=icons/ `
-            --lto=yes `
-            --jobs=4 `
-            --no-pyi-file `
-            --python-flag=no_asserts `
-            --python-flag=no_docstrings `
-            --python-flag=no_annotations `
-            --python-flag=no_warnings `
-            --disable-ccache `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -90,6 +91,7 @@ jobs:
             --include-module=ui.apphuy `
             --include-module=ui.appchuy `
             --include-module=ui.search `
+            --include-module=ui.kraken `
             --include-module=ui.proxy_utils `
             --include-module=ui.mail `
             --include-module=ui.instructions `
@@ -100,7 +102,6 @@ jobs:
             --include-module=ui.top `
             --include-module=ui.side `
             --include-module=ui.bottom `
-            --include-module=ui.kraken `
             --include-module=ui.informatika `
             --include-module=ui.bot_manager `
             --include-module=ui.bots_win `
@@ -111,13 +112,20 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
+            --clang `
+            --lto=yes `
+            --static-libpython=yes `
+            --jobs=4 `
+            --python-flag=no_docstrings `
+            --python-flag=no_annotations `
+            --python-flag=no_warnings `
+            --nofollow-import-to=tests,examples,setuptools `
+            --experimental=use_pefile `
+            --experimental=use_bundled_includes `
             --show-scons `
-            --macos-create-app-bundle=no `
             --show-modules `
             --verbose
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

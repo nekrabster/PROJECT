@@ -1,6 +1,7 @@
 import os
 import asyncio
 import logging
+import ssl
 from enum import Enum, auto
 from typing import Optional, Dict, Any, Callable
 from dataclasses import dataclass
@@ -127,6 +128,11 @@ class AiogramBotConnection(QObject):
         self.last_user_id = None
     @handle_aiogram_errors
     async def connect(self, *args):
+        if self.bot:
+            await self.disconnect()
+        ssl_context = ssl.create_default_context()
+        self._connector = aiohttp.TCPConnector(ssl=ssl_context)
+        proxy_url = None
         if self.proxy:
             scheme = self.proxy.get('type', 'socks5')
             ip = self.proxy.get('ip')
@@ -137,11 +143,7 @@ class AiogramBotConnection(QObject):
                 proxy_url = f"{scheme}://{login}:{password}@{ip}:{port}"
             else:
                 proxy_url = f"{scheme}://{ip}:{port}"
-            self._connector = aiohttp.TCPConnector(ssl=False)
-            self.bot = Bot(token=self.token, proxy=proxy_url, connector=self._connector)
-        else:
-            self._connector = aiohttp.TCPConnector(ssl=False)
-            self.bot = Bot(token=self.token, connector=self._connector)
+        self.bot = Bot(token=self.token, proxy=proxy_url, connector=self._connector)
         self._running = True
         try:
             info = await self.bot.get_me()

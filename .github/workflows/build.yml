@@ -1,4 +1,4 @@
-name: Сборка Windows EXE с максимальной производительностью
+name: Build Windows EXE с максимальной производительностью
 
 on:
   workflow_dispatch:
@@ -10,71 +10,79 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: 🧾 Выгрузка кода
+      - name: 🧾 Клонирование репозитория
         uses: actions/checkout@v4
 
-      - name: 🐍 Установка Python 3.13
+      - name: 🐍 Установка Python 3.13.5
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13.5'
           cache: 'pip'
 
-      - name: 🆙 Обновление pip
+      - name: 🆙 Обновление pip до последней версии
         run: python -m pip install --upgrade pip setuptools wheel
 
-      - name: 📦 Установка зависимостей
-        run: |
-          pip install -r requirements.txt
-          pip install --upgrade nuitka ordered-set zstandard
+      - name: 📦 Установка зависимостей проекта
+        run: pip install -r requirements.txt
 
-      - name: 🧰 Настройка MSVC для Clang
+      - name: 🌙 Установка Nuitka 2.7.10 с оптимизациями
+        run: pip install nuitka==2.7.10 ordered-set zstandard
+
+      - name: 🧰 Настройка MSVC для максимальной производительности
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
-      - name: ⚙️ Установка LLVM (Clang 18)
+      - name: ⚙️ Установка LLVM Clang 18 для лучшей оптимизации
         uses: egor-tensin/setup-clang@v1
         with:
           version: 18
 
-      - name: 🔍 Поиск путей certifi и PyQt6
-        id: paths
+      - name: 🔍 Поиск пути к certifi сертификатам
+        id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-          echo "pyqt6_path=$(python -c 'import PyQt6; import os; print(os.path.dirname(PyQt6.__file__))')" >> $GITHUB_OUTPUT
-
-      - name: 🛠 Сборка .exe с максимальной оптимизацией
+      - name: 🛠 Сборка .exe с максимальными оптимизациями Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
           NUITKA_CACHE_DIR: "${{ runner.temp }}/nuitka_cache"
         run: |
+          # Настройка компилятора для максимальной производительности
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-          $env:CFLAGS = "-O3 -flto -ffast-math -march=native"
-          $env:CXXFLAGS = "-O3 -flto -ffast-math -march=native"
+          $env:CFLAGS = "-O3 -march=native -mtune=native -flto"
+          $env:CXXFLAGS = "-O3 -march=native -mtune=native -flto"
+          
+          # Создание директории кэша
+          New-Item -ItemType Directory -Force -Path "${{ runner.temp }}/nuitka_cache"
+          
           python -m nuitka main.py `
             --standalone `
             --onefile `
-            --onefile-tempdir-spec="%TEMP%/soft_k_%PID%_%TIME%" `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
-            --windows-icon-from-ico=icons/icon.ico `
+            --windows-icon-from-ico=icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
-            --windows-product-version="2.4.0" `
-            --windows-file-description="Оптимизированное приложение Soft-K" `
+            --windows-product-version="2.3.6" `
+            --windows-file-description="Высокопроизводительное приложение" `
+            --windows-file-version="2.3.6.0" `
             --assume-yes-for-downloads `
             --follow-imports `
             --prefer-source-code `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --enable-plugin=anti-bloat `
-            --enable-plugin=upx `
-            --include-data-file="${{ steps.paths.outputs.certifi_path }}=certifi/cacert.pem" `
+            --enable-plugin=multiprocessing `
+            --enable-plugin=numpy `
+            --disable-plugin=anti-bloat `
+            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-files=icons/*.png=icons/ `
             --include-data-files=icons/*.ico=icons/ `
+            --include-package=ui `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -122,49 +130,63 @@ jobs:
             --include-module=logging `
             --clang `
             --lto=yes `
-            --jobs=4 `
-            --low-memory `
+            --onefile-tempdir-spec="{CACHE_DIR}/{COMPANY}/{PRODUCT}/{VERSION}" `
+            --onefile-child-grace-time=5 `
+            --onefile-no-compression `
+            --mingw64 `
+            --jobs=0 `
             --python-flag=no_docstrings `
             --python-flag=no_annotations `
             --python-flag=no_asserts `
-            --python-flag=-O `
-            --nofollow-import-to=tests,examples,setuptools,pip,wheel `
+            --python-flag=O `
+            --python-flag=-S `
+            --python-flag=-B `
+            --nofollow-import-to=tests,examples,setuptools,distutils,pip `
             --noinclude-default-mode=error `
-            --noinclude-custom-mode=bytecode:PATTERN `
-            --experimental=use_pefile_recurse `
-            --experimental=use_bundled_includes `
-            --experimental=use_lto_mode `
-            --msvc=latest `
-            --disable-ccache `
-            --report=compilation-report.xml `
-            --show-scons `
-            --show-modules `
-            --verbose
-
-      - name: 🗜️ Дополнительная компрессия UPX
+            --noinclude-custom-mode=*.pyc:error `
+            --optimization-level=balanced `
+            --report-template=compilation-report.xml `
+            --quiet
+      - name: 📊 Анализ размера и производительности
+        shell: pwsh
         run: |
-          choco install upx -y
-          upx --best --lzma dist/Soft-K.exe
+          if (Test-Path "dist/Soft-K.exe") {
+            $fileSize = (Get-Item "dist/Soft-K.exe").Length / 1MB
+            Write-Host "📦 Размер исполняемого файла: $([math]::Round($fileSize, 2)) MB"
+            
+            # Проверка на наличие отчёта компиляции
+            if (Test-Path "compilation-report.xml") {
+              Write-Host "📈 Отчёт о компиляции создан успешно"
+            }
+          } else {
+            Write-Host "❌ Файл Soft-K.exe не найден!"
+            exit 1
+          }
 
-      - name: 📊 Проверка размера файла
-        run: |
-          Get-ChildItem -Path "dist/Soft-K.exe" | Select-Object Name, @{Name="Size(MB)";Expression={[math]::round($_.Length/1MB,2)}}
-
-      - name: ☁️ Загрузка .exe как артефакт
+      - name: ☁️ Загрузка оптимизированного .exe
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K-Optimized
-          path: dist/Soft-K.exe
+          path: |
+            dist/Soft-K.exe
+            compilation-report.xml
           retention-days: 30
 
-      - name: 📋 Загрузка отчетов сборки (при ошибке)
+      - name: 📋 Загрузка логов сборки (при ошибке)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build_logs_and_reports
+          name: build_logs_failure
           path: |
             build/
             *.log
             *.xml
-            compilation-report.xml
+            nuitka-*
           retention-days: 7
+
+      - name: 🧹 Очистка временных файлов
+        if: always()
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "${{ runner.temp }}/nuitka_cache"
+          Write-Host "✅ Временные файлы очищены"

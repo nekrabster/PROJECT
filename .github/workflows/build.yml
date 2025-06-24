@@ -74,7 +74,6 @@ jobs:
             --python-flag=no_warnings `
             --static-libpython=no `
             --disable-ccache `
-            --disable-console `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `

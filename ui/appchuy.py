@@ -163,17 +163,20 @@ class AiogramBotConnection(QObject):
         self._running = False
     @handle_aiogram_errors
     async def reconnect(self, *args):
+        self.log_signal.emit(f"🔄 Попытка переподключения для {self.username}...")
         for attempt in range(self._reconnect_attempts):
             try:
-                await self.disconnect()
+                if self.is_connected:
+                    await self.disconnect()
                 await asyncio.sleep(self._reconnect_delay)
                 await self.connect()
-                self.log_signal.emit(f"🔄 Переподключение успешно для {self.username}...")
+                self.log_signal.emit(f"✅ Переподключение успешно для {self.username}")
                 return True
             except Exception as e:
-                self.log_signal.emit(f"⚠️ Ошибка переподключения ({attempt+1}): {e}")
-                await asyncio.sleep(self._reconnect_delay)
-        self.log_signal.emit(f"❌ Не удалось переподключить бота {self.username}...")
+                self.log_signal.emit(f"⚠️ Ошибка переподключения ({attempt+1}/{self._reconnect_attempts}): {e}")
+                if attempt < self._reconnect_attempts - 1:
+                    await asyncio.sleep(self._reconnect_delay)
+        self.log_signal.emit(f"❌ Не удалось переподключить бота {self.username}")
         return False
     @handle_aiogram_errors
     async def get_updates(self, offset=0, timeout=3, *args):

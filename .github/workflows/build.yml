@@ -32,7 +32,6 @@ jobs:
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         run: |
@@ -47,7 +46,13 @@ jobs:
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-
+            --lto=yes `
+            --jobs=4 `
+            --clang `
+            --remove-unused-functions `
+            --include-package-data=PyQt6 `
+            --include-data-dir=icons=icons `
+            --include-data-files=server_data=server_data
       - name: 📋 Upload build logs (if failed)
         if: failure()
         uses: actions/upload-artifact@v4

@@ -212,6 +212,8 @@ class NewTokenWindow(QWidget, ThreadStopMixin):
         valid, sessions, username_input = self.validate_bot_creation()
         if not valid:
             return
+        self.log_area.clear()
+        self.thread_manager.clear_completed()
         valid_bots, usernames, names = self.prepare_bot_data(username_input)
         if not valid_bots:
             return

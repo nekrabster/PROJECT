@@ -1,4 +1,18 @@
-name: Build Windows EXE с максимальной производительностью
+А щас что за ошибка с другой сборкой?
+Run $env:CC = "clang-cl"
+Nuitka-Options: Used command line options:
+Nuitka-Options:   main.py --mode=onefile --remove-output --output-dir=dist --output-filename=Soft-K --windows-icon-from-ico=icon.ico --windows-company-name=SecureSoft --windows-product-name=Soft-K --windows-product-version=2.3.6 --assume-yes-for-downloads --follow-imports --enable-plugin=pyqt6 --enable-plugin=data-files --enable-plugin=anti-bloat --include-data-file=C:\hostedtoolcache\windows\Python\3.13.5\x64\Lib\site-packages\certifi\cacert.pem=certifi/cacert.pem --include-data-files=icons/*.png=icons/ --include-data-files=icons/*.ico=icons/ --include-module=ui.rudich --include-module=ui.complas --include-module=ui.components --include-module=ui.malining --include-module=ui.malina --include-module=ui.bombardirocrocodilo --include-module=ui.newtoken --include-module=ui.kachok --include-module=ui.session --include-module=ui.subscribe --include-module=ui.session_manager --include-module=ui.sim_manager --include-module=ui.session_win --include-module=ui.bombardo --include-module=ui.okak --include-module=ui.rass --include-module=ui.timer --include-module=ui.progress --include-module=ui.thread_base --include-module=ui.apphuy --include-module=ui.appchuy --include-module=ui.search --include-module=ui.kraken --include-module=ui.proxy_utils --include-module=ui.mail --include-module=ui.instructions --include-module=ui.subs --include-module=ui.damkrat --include-module=ui.theme --include-module=ui.styles --include-module=ui.top --include-module=ui.side --include-module=ui.bottom --include-module=ui.informatika --include-module=ui.bot_manager --include-module=ui.bots_win --include-module=ui.gulick --include-module=ui.integraly --include-module=ui.kms --include-module=ui.codik --include-module=ui.adv --include-module=ui.filya --include-module=ui.decorators --include-module=warnings --include-module=logging --clang --lto=yes --pgo-c --deployment --onefile-no-compression --jobs=0 --python-flag=no_docstrings --python-flag=no_annotations --python-flag=optimize --python-flag=no_debug --nofollow-import-to=tests,examples,setuptools,distutils,unittest,pytest --experimental=use_pefile --experimental=use_bundled_includes --prefer-source-code --show-scons --show-modules --verbose
+Nuitka-Options: Following all imports is the default for onefile mode and need not be specified.
+Nuitka-Optimization:WARNING: Using C level PGO with standalone/onefile mode is not currently working. Expect errors.
+Nuitka-Plugins:WARNING: anti-bloat: Plugin is defined as always enabled, no need to enable it.
+Nuitka-Plugins:WARNING: data-files: Plugin is defined as always enabled, no need to enable it.
+Nuitka-Plugins:pyqt6: Support for PyQt6 is not perfect, e.g. Qt threading does not work, so prefer PySide6 if you can.
+Nuitka: Starting Python compilation with:
+Nuitka:   Version '2.7.10' on Python 3.13 (flavor 'CPython Official') commercial grade 'not installed'.
+FATAL: Unsupported python flag 'optimize'.
+Error: Process completed with exit code 1.
+
+name: Сборка Windows EXE с максимальной оптимизацией производительности Nuitka 2.7.10
 
 on:
   workflow_dispatch:
@@ -10,58 +24,51 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: 🧾 Клонирование репозитория
+      - name: 🧾 Получение исходного кода
         uses: actions/checkout@v4
 
-      - name: 🐍 Установка Python 3.13.5
+      - name: 🐍 Настройка Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13.5'
+          python-version: '3.13'
           cache: 'pip'
 
-      - name: 🆙 Обновление pip до последней версии
-        run: python -m pip install --upgrade pip setuptools wheel
+      - name: 🆙 Обновление pip
+        run: python -m pip install --upgrade pip
 
-      - name: 📦 Установка зависимостей проекта
+      - name: 📦 Установка зависимостей
         run: pip install -r requirements.txt
 
-      - name: 🌙 Установка Nuitka 2.7.10 с оптимизациями
-        run: pip install nuitka==2.7.10 ordered-set zstandard
+      - name: 🌙 Установка последней версии Nuitka
+        run: pip install --upgrade nuitka
 
+      - name: 📋 Установка дополнительных зависимостей для оптимизации
+        run: |
+          pip install --upgrade zstandard
+          pip install --upgrade setuptools
       - name: 🧰 Настройка MSVC для максимальной производительности
         uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
 
-      - name: ⚙️ Установка LLVM Clang 18 для лучшей оптимизации
+      - name: ⚙️ Установка LLVM (Clang) для LTO оптимизации
         uses: egor-tensin/setup-clang@v1
         with:
-          version: 18
+          version: 17
 
-      - name: 🔍 Поиск пути к certifi сертификатам
+      - name: 🔍 Определение пути к сертификатам certifi
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-      - name: 🛠 Сборка .exe с максимальными оптимизациями Nuitka
+      - name: 🛠 Сборка .exe с максимальной оптимизацией Nuitka 2.7.10
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
-          NUITKA_CACHE_DIR: "${{ runner.temp }}/nuitka_cache"
         run: |
-          # Настройка компилятора для максимальной производительности
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-          $env:CFLAGS = "-O3 -march=native -mtune=native -flto"
-          $env:CXXFLAGS = "-O3 -march=native -mtune=native -flto"
-          
-          # Создание директории кэша
-          New-Item -ItemType Directory -Force -Path "${{ runner.temp }}/nuitka_cache"
-          
           python -m nuitka main.py `
-            --standalone `
-            --onefile `
+            --mode=onefile `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
@@ -69,17 +76,14 @@ jobs:
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version="2.3.6" `
-            --windows-file-description="Высокопроизводительное приложение" `
-            --windows-file-version="2.3.6.0" `
             --assume-yes-for-downloads `
             --follow-imports `
-            --prefer-source-code `
             --enable-plugin=pyqt6 `
-            --disable-plugin=anti-bloat `
+            --enable-plugin=data-files `
+            --enable-plugin=anti-bloat `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-files=icons/*.png=icons/ `
             --include-data-files=icons/*.ico=icons/ `
-            --include-package=ui `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -127,61 +131,32 @@ jobs:
             --include-module=logging `
             --clang `
             --lto=yes `
-            --onefile-tempdir-spec="{CACHE_DIR}/{COMPANY}/{PRODUCT}/{VERSION}" `
-            --onefile-child-grace-time=5 `
+            --pgo-c `
+            --deployment `
             --onefile-no-compression `
             --jobs=0 `
             --python-flag=no_docstrings `
             --python-flag=no_annotations `
-            --python-flag=no_asserts `
-            --python-flag=-O `
-            --python-flag=-S `
-            --python-flag=-B `
-            --nofollow-import-to=tests,examples,setuptools,distutils,pip `
-            --noinclude-default-mode=error `
-            --noinclude-custom-mode=*.pyc:error `
-            --report-template=compilation-report.xml `
-            --quiet
-            
-      - name: 📊 Анализ размера и производительности
-        shell: pwsh
-        run: |
-          if (Test-Path "dist/Soft-K.exe") {
-            $fileSize = (Get-Item "dist/Soft-K.exe").Length / 1MB
-            Write-Host "📦 Размер исполняемого файла: $([math]::Round($fileSize, 2)) MB"
-            
-            # Проверка на наличие отчёта компиляции
-            if (Test-Path "compilation-report.xml") {
-              Write-Host "📈 Отчёт о компиляции создан успешно"
-            }
-          } else {
-            Write-Host "❌ Файл Soft-K.exe не найден!"
-            exit 1
-          }
-      - name: ☁️ Загрузка оптимизированного .exe
+            --python-flag=no_debug `
+            --nofollow-import-to=tests,examples,setuptools,distutils,unittest,pytest `
+            --experimental=use_pefile `
+            --experimental=use_bundled_includes `
+            --prefer-source-code `
+            --show-scons `
+            --show-modules `
+            --verbose
+      - name: ☁️ Загрузка .exe как артефакт
         uses: actions/upload-artifact@v4
         with:
-          name: Soft-K-Optimized
-          path: |
-            dist/Soft-K.exe
-            compilation-report.xml
-          retention-days: 30
+          name: Soft-K.exe
+          path: dist/Soft-K.exe
 
       - name: 📋 Загрузка логов сборки (при ошибке)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build_logs_failure
+          name: build_logs
           path: |
             build/
             *.log
-            *.xml
-            nuitka-*
-          retention-days: 7
-
-      - name: 🧹 Очистка временных файлов
-        if: always()
-        shell: pwsh
-        run: |
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "${{ runner.temp }}/nuitka_cache"
-          Write-Host "✅ Временные файлы очищены"
+            build-report.txt

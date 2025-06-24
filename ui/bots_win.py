@@ -285,6 +285,7 @@ class BotTokenWindow(QWidget):
         self.logger.debug(f"Token fetch queue size: {len(self.tokens_to_fetch_queue)} tokens.")
         asyncio.create_task(self._launch_fetcher_tasks_from_queue_async()) 
     async def _launch_fetcher_tasks_from_queue_async(self, *args, **kwargs):
+        self.thread_manager.clear_completed()
         can_launch_count = MAX_CONCURRENT_FETCHERS - len(self.active_fetcher_threads)
         self.logger.debug(f"Async Can launch {can_launch_count} new fetchers. Queue size: {len(self.tokens_to_fetch_queue)}.")        
         for _ in range(can_launch_count):

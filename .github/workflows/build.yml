@@ -1,4 +1,4 @@
-name: Build Windows EXE with Nuitka
+name: Build Windows EXE с максимальной оптимизацией
 
 on:
   workflow_dispatch:
@@ -17,17 +17,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
 
       - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
 
       - name: 📦 Install requirements
-        run: |
-          pip install --upgrade wheel setuptools
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: 🌙 Install latest Nuitka
-        run: pip install --upgrade nuitka ordered-set
+        run: pip install --upgrade nuitka
 
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
@@ -42,56 +41,31 @@ jobs:
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-
-      - name: 📝 Create PGO directory
-        run: mkdir pgo_data
-
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
-          NUITKA_CACHE_DIR: ".nuitka-cache"
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-          nuitka `
-            main.py `
+          python -m nuitka main.py `
             --standalone `
             --onefile `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
+            --windows-company-name="SecureSoft" `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="1.0.0" `
             --assume-yes-for-downloads `
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
-            --include-data-dir=icons=icons `
-            --clang `
-            --lto=yes `
-            --static-libpython=yes `
-            --jobs=4 `
-            --no-pyi-file `
-            --pgo `
-            --enable-plugin=anti-bloat `
-            --pgo-args=--help `
-            --pgo-directory=pgo_data `
-            --msvc=latest `
-            --windows-disable-console `
-            --windows-uac-admin `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
-            --windows-file-description="Soft-K Application" `
-            --enable-console `
-            --show-modules `
-            --show-scons `
-            --show-progress `
-            --show-memory `
-            --report=build-report.txt `
-            --verbose `
+            --include-data-files=icons/*.png=icons/ `
+            --include-data-files=icons/*.ico=icons/ `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -106,7 +80,6 @@ jobs:
             --include-module=ui.sim_manager `
             --include-module=ui.session_win `
             --include-module=ui.bombardo `
-            --include-module=ui.kraken `
             --include-module=ui.okak `
             --include-module=ui.rass `
             --include-module=ui.timer `
@@ -115,6 +88,7 @@ jobs:
             --include-module=ui.apphuy `
             --include-module=ui.appchuy `
             --include-module=ui.search `
+            --include-module=ui.kraken `
             --include-module=ui.proxy_utils `
             --include-module=ui.mail `
             --include-module=ui.instructions `
@@ -134,8 +108,20 @@ jobs:
             --include-module=ui.codik `
             --include-module=ui.adv `
             --include-module=ui.filya `
-            --include-module=ui.decorators
-
+            --include-module=ui.decorators `
+            --include-module=warnings `
+            --include-module=logging `
+            --clang `
+            --lto=yes `
+            --jobs=4 `
+            --python-flag=no_docstrings `
+            --python-flag=no_annotations `
+            --nofollow-import-to=tests,examples,setuptools `
+            --experimental=use_pefile `
+            --experimental=use_bundled_includes `
+            --show-scons `
+            --show-modules `
+            --verbose
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -150,5 +136,4 @@ jobs:
           path: |
             build/
             *.log
-            pgo_data/
             build-report.txt

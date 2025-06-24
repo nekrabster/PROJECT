@@ -1,4 +1,4 @@
-name: Build Windows EXE with Nuitka (Clang + LTO + Parallel)
+name: Build Fast EXE with Nuitka (Clang + LTO + Manual Modules)
 
 on:
   workflow_dispatch:
@@ -7,14 +7,13 @@ on:
 
 jobs:
   build:
-    # Используем Windows 2022 для гарантированного наличия Clang и MSVC Dev Cmd
     runs-on: windows-2022
 
     steps:
-      - name: 🧾 Checkout code
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.13 (кеш pip)
+      - name: 🐍 Setup Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -24,54 +23,95 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # Обязательно последняя версия Nuitka
           pip install --upgrade nuitka
 
-      - name: 🧰 Setup MSVC Dev Cmd (Windows SDK)
+      - name: ⚙️ Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: ⚙️ Install LLVM/Clang 17
+      - name: 🧰 Install Clang 17
         uses: egor-tensin/setup-clang@v1
         with:
           version: 17
 
-      - name: 🔍 Find certifi cacert.pem
+      - name: 🔍 Find certifi path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
 
-      - name: 🔧 Build .exe with Nuitka
+      - name: 🚀 Build optimized .exe with Nuitka
         shell: pwsh
         env:
-          PYTHONIOENCODING: "utf-8"
-          PYTHONLEGACYWINDOWSSTDIO: "utf-8"
-          # Переключаемся на clang-cl вместо MSVC
           CC: "clang-cl"
           CXX: "clang-cl"
         run: |
           python -m nuitka main.py `
-            --standalone `                         # автономный .exe
-            --onefile `                            # упаковать всё в один .exe
-            --clang `                              # использовать clang-cl
-            --lto=yes `                            # link-time optimizations
-            --jobs=$(Get-ComputerInfo | Select-Object -Expand CpuLogicalProcessorCount) `  
-                                                  # параллельная компиляция по всем логическим ядрам
-            --enable-plugin=pyqt6 `               # плагин для PyQt6
-            --enable-plugin=data-files `          # автоподключение ресурсов
-            --include-package=ui `                # все ваши модули UI
-            --include-data-dir=icons=icons `      # папка с png/ico
-            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
-                                                  # сертификаты для HTTPS
-            --windows-icon-from-ico=icon.ico `    # иконка exe
+            --standalone `
+            --onefile `
+            --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K.exe `
-            --remove-output `                     # чистим dist перед сборкой
+            --windows-icon-from-ico=icon.ico `
+            --windows-company-name="SecureSoft" `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="1.0.0" `
+            --clang `
+            --lto=yes `
+            --jobs=4 `
+            --enable-plugin=pyqt6 `
+            --enable-plugin=data-files `
+            --include-data-dir=icons=icons `
+            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
+            --no-pyi-file `
             --follow-imports `
             --assume-yes-for-downloads `
-            --verbose                             # подробный лог
+            --include-module=ui.rudich `
+            --include-module=ui.bombardirocrocodilo `
+            --include-module=ui.complas `
+            --include-module=ui.components `
+            --include-module=ui.malining `
+            --include-module=ui.malina `
+            --include-module=ui.newtoken `
+            --include-module=ui.kachok `
+            --include-module=ui.session `
+            --include-module=ui.subscribe `
+            --include-module=ui.session_manager `
+            --include-module=ui.sim_manager `
+            --include-module=ui.session_win `
+            --include-module=ui.bombardo `
+            --include-module=ui.okak `
+            --include-module=ui.rass `
+            --include-module=ui.timer `
+            --include-module=ui.progress `
+            --include-module=ui.thread_base `
+            --include-module=ui.apphuy `
+            --include-module=ui.appchuy `
+            --include-module=ui.search `
+            --include-module=ui.proxy_utils `
+            --include-module=ui.mail `
+            --include-module=ui.instructions `
+            --include-module=ui.subs `
+            --include-module=ui.damkrat `
+            --include-module=ui.theme `
+            --include-module=ui.styles `
+            --include-module=ui.top `
+            --include-module=ui.side `
+            --include-module=ui.bottom `
+            --include-module=ui.informatika `
+            --include-module=ui.bot_manager `
+            --include-module=ui.bots_win `
+            --include-module=ui.gulick `
+            --include-module=ui.integraly `
+            --include-module=ui.kms `
+            --include-module=ui.codik `
+            --include-module=ui.adv `
+            --include-module=ui.filya `
+            --include-module=ui.decorators `
+            --show-modules `
+            --show-progress `
+            --verbose
 
-      - name: ☁️ Upload .exe as artifact
+      - name: ☁️ Upload .exe artifact
         uses: actions/upload-artifact@v4
         with:
           name: Soft-K.exe

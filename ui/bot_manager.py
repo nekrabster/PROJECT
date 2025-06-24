@@ -383,6 +383,14 @@ class BotManagerWindow(BaseTableManager):
         self.update_stats_for_selected_tokens() 
     def on_folder_changed(self, files: List[str]):
         self.logger.info(f"Token files changed. Data will be updated via bot_details_updated signal.")
+        all_current_tokens = set(self.bot_token_window.token_to_file_map.keys())
+        existing_data_tokens = set(self.all_bots_data.keys())
+        tokens_to_remove = existing_data_tokens - all_current_tokens
+        if tokens_to_remove:
+            self.logger.info(f"Removing {len(tokens_to_remove)} stale bot data entries.")
+            for token in tokens_to_remove:
+                if token in self.all_bots_data:
+                    del self.all_bots_data[token]
         QTimer.singleShot(0, lambda: self.populate_table_with_selected_tokens()) 
         self.update_stats_for_selected_tokens()
     def handle_cell_click(self, row, col, *args, **kwargs):

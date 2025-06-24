@@ -75,6 +75,7 @@ jobs:
             --jobs=4 `
             --no-pyi-file `
             --pgo `
+            --enable-plugin=anti-bloat `
             --pgo-args=--help `
             --pgo-directory=pgo_data `
             --msvc=latest `

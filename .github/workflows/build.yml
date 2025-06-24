@@ -22,10 +22,12 @@ jobs:
         run: python -m pip install --upgrade pip
 
       - name: 📦 Install requirements
-        run: pip install -r requirements.txt
+        run: |
+          pip install --upgrade wheel setuptools
+          pip install -r requirements.txt
 
       - name: 🌙 Install latest Nuitka
-        run: pip install --upgrade nuitka
+        run: pip install --upgrade nuitka ordered-set
 
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
@@ -40,11 +42,16 @@ jobs:
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
+
+      - name: 📝 Create PGO directory
+        run: mkdir pgo_data
+
       - name: 🛠 Build .exe with Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
+          NUITKA_CACHE_DIR: ".nuitka-cache"
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
@@ -64,8 +71,26 @@ jobs:
             --include-data-dir=icons=icons `
             --clang `
             --lto=yes `
+            --static-libpython=yes `
             --jobs=4 `
             --no-pyi-file `
+            --pgo `
+            --pgo-args=--help `
+            --pgo-directory=pgo_data `
+            --msvc=latest `
+            --windows-disable-console `
+            --windows-uac-admin `
+            --windows-company-name="SecureSoft" `
+            --windows-product-name="Soft-K" `
+            --windows-product-version="1.0.0" `
+            --windows-file-description="Soft-K Application" `
+            --enable-console `
+            --show-modules `
+            --show-scons `
+            --show-progress `
+            --show-memory `
+            --report=build-report.txt `
+            --verbose `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `
@@ -108,14 +133,8 @@ jobs:
             --include-module=ui.codik `
             --include-module=ui.adv `
             --include-module=ui.filya `
-            --include-module=ui.decorators `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
-            --show-modules `
-            --show-scons `
-            --verbose `
-            --report=build-report.txt
+            --include-module=ui.decorators
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -130,3 +149,5 @@ jobs:
           path: |
             build/
             *.log
+            pgo_data/
+            build-report.txt

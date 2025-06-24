@@ -84,7 +84,6 @@ jobs:
             --include-module=ui.side `
             --include-module=ui.bottom `
             --include-module=ui.informatika `
-            --include-module=ui.bot_transfer `
             --include-module=ui.bot_manager `
             --include-module=ui.bots_win `
             --include-module=ui.gulick `

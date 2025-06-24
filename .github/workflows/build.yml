@@ -1,4 +1,4 @@
-name: Build Windows EXE с максимальной оптимизацией
+name: Сборка Windows EXE с максимальной производительностью
 
 on:
   workflow_dispatch:
@@ -10,60 +10,69 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: 🧾 Checkout code
+      - name: 🧾 Выгрузка кода
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.13
+      - name: 🐍 Установка Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
 
-      - name: 🆙 Upgrade pip
-        run: python -m pip install --upgrade pip
+      - name: 🆙 Обновление pip
+        run: python -m pip install --upgrade pip setuptools wheel
 
-      - name: 📦 Install requirements
-        run: pip install -r requirements.txt
+      - name: 📦 Установка зависимостей
+        run: |
+          pip install -r requirements.txt
+          pip install --upgrade nuitka ordered-set zstandard
 
-      - name: 🌙 Install latest Nuitka
-        run: pip install --upgrade nuitka
-
-      - name: 🧰 Setup MSVC for Clang
+      - name: 🧰 Настройка MSVC для Clang
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: ⚙️ Install LLVM (Clang)
+      - name: ⚙️ Установка LLVM (Clang 18)
         uses: egor-tensin/setup-clang@v1
         with:
-          version: 17
+          version: 18
 
-      - name: 🔍 Find certifi cacert.pem path
-        id: certifi_path
+      - name: 🔍 Поиск путей certifi и PyQt6
+        id: paths
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-      - name: 🛠 Build .exe with Nuitka
+          echo "pyqt6_path=$(python -c 'import PyQt6; import os; print(os.path.dirname(PyQt6.__file__))')" >> $GITHUB_OUTPUT
+
+      - name: 🛠 Сборка .exe с максимальной оптимизацией
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
+          NUITKA_CACHE_DIR: "${{ runner.temp }}/nuitka_cache"
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
+          $env:CFLAGS = "-O3 -flto -ffast-math -march=native"
+          $env:CXXFLAGS = "-O3 -flto -ffast-math -march=native"
           python -m nuitka main.py `
             --standalone `
             --onefile `
+            --onefile-tempdir-spec="%TEMP%/soft_k_%PID%_%TIME%" `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
-            --windows-icon-from-ico=icon.ico `
+            --windows-icon-from-ico=icons/icon.ico `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
+            --windows-product-version="2.4.0" `
+            --windows-file-description="Оптимизированное приложение Soft-K" `
             --assume-yes-for-downloads `
             --follow-imports `
+            --prefer-source-code `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
+            --enable-plugin=anti-bloat `
+            --enable-plugin=upx `
+            --include-data-file="${{ steps.paths.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-files=icons/*.png=icons/ `
             --include-data-files=icons/*.ico=icons/ `
             --include-module=ui.rudich `
@@ -114,26 +123,48 @@ jobs:
             --clang `
             --lto=yes `
             --jobs=4 `
+            --low-memory `
             --python-flag=no_docstrings `
             --python-flag=no_annotations `
-            --nofollow-import-to=tests,examples,setuptools `
-            --experimental=use_pefile `
+            --python-flag=no_asserts `
+            --python-flag=-O `
+            --nofollow-import-to=tests,examples,setuptools,pip,wheel `
+            --noinclude-default-mode=error `
+            --noinclude-custom-mode=bytecode:PATTERN `
+            --experimental=use_pefile_recurse `
             --experimental=use_bundled_includes `
+            --experimental=use_lto_mode `
+            --msvc=latest `
+            --disable-ccache `
+            --report=compilation-report.xml `
             --show-scons `
             --show-modules `
             --verbose
-      - name: ☁️ Upload .exe as artifact
+
+      - name: 🗜️ Дополнительная компрессия UPX
+        run: |
+          choco install upx -y
+          upx --best --lzma dist/Soft-K.exe
+
+      - name: 📊 Проверка размера файла
+        run: |
+          Get-ChildItem -Path "dist/Soft-K.exe" | Select-Object Name, @{Name="Size(MB)";Expression={[math]::round($_.Length/1MB,2)}}
+
+      - name: ☁️ Загрузка .exe как артефакт
         uses: actions/upload-artifact@v4
         with:
-          name: Soft-K.exe
+          name: Soft-K-Optimized
           path: dist/Soft-K.exe
+          retention-days: 30
 
-      - name: 📋 Upload build logs (if failed)
+      - name: 📋 Загрузка отчетов сборки (при ошибке)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build_logs
+          name: build_logs_and_reports
           path: |
             build/
             *.log
-            build-report.txt
+            *.xml
+            compilation-report.xml
+          retention-days: 7

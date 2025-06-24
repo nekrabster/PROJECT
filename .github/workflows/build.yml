@@ -1,4 +1,4 @@
-name: Build Windows EXE с Nuitka (OneFile + Clang + Оптимизации)
+name: Build Windows EXE with Nuitka
 
 on:
   workflow_dispatch:
@@ -10,46 +10,32 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: 🧾 Checkout кода
+      - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Установка Python 3.13
+      - name: 🐍 Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          cache: 'pip'
 
-      - name: 🆙 Обновление pip
+      - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
 
-      - name: 📦 Установка зависимостей
+      - name: 📦 Install requirements
         run: pip install -r requirements.txt
 
-      - name: 🌙 Установка последней версии Nuitka
+      - name: 🌙 Install latest Nuitka
         run: pip install --upgrade nuitka
 
-      - name: 🧰 Настройка MSVC для Clang
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: ⚙️ Установка LLVM (Clang)
-        uses: egor-tensin/setup-clang@v1
-        with:
-          version: 17
-
-      - name: 🔍 Определение пути к certifi cacert.pem
+      - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
 
-      - name: 🛠 Сборка .exe с Nuitka
+      - name: 🛠 Build .exe with Nuitka
         shell: pwsh
-        env:
-          PYTHONIOENCODING: "utf-8"
-          PYTHONLEGACYWINDOWSSTDIO: "utf-8"
         run: |
-          $env:CC = "clang-cl"
-          $env:CXX = "clang-cl"
           nuitka `
             main.py `
             --standalone `
@@ -58,65 +44,20 @@ jobs:
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
-            --windows-company-name="SecureSoft" `
-            --windows-product-name="Soft-K" `
-            --windows-product-version="1.0.0" `
             --assume-yes-for-downloads `
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
             --lto=yes `
-            --clang `
             --jobs=4 `
-            --no-pyi-file `
-            --show-scons `
-            --include-module=ui.rudich `
-            --include-module=ui.complas `
-            --include-module=ui.components `
-            --include-module=ui.malining `
-            --include-module=ui.malina `
-            --include-module=ui.bombardirocrocodilo `
-            --include-module=ui.newtoken `
-            --include-module=ui.kachok `
-            --include-module=ui.session `
-            --include-module=ui.subscribe `
-            --include-module=ui.session_manager `
-            --include-module=ui.sim_manager `
-            --include-module=ui.session_win `
-            --include-module=ui.bombardo `
-            --include-module=ui.okak `
-            --include-module=ui.rass `
-            --include-module=ui.timer `
-            --include-module=ui.progress `
-            --include-module=ui.thread_base `
-            --include-module=ui.apphuy `
-            --include-module=ui.appchuy `
-            --include-module=ui.search `
-            --include-module=ui.proxy_utils `
-            --include-module=ui.mail `
-            --include-module=ui.instructions `
-            --include-module=ui.subs `
-            --include-module=ui.damkrat `
-            --include-module=ui.theme `
-            --include-module=ui.styles `
-            --include-module=ui.top `
-            --include-module=ui.side `
-            --include-module=ui.bottom `
-            --include-module=ui.informatika `
-            --include-module=ui.bot_manager `
-            --include-module=ui.bots_win `
-            --include-module=ui.gulick `
-            --include-module=ui.integraly `
-            --include-module=ui.kms `
-            --include-module=ui.codik `
-            --include-module=ui.adv `
-            --include-module=ui.filya `
-            --include-module=ui.decorators `
-            --include-data-files=icons/*.png=icons/ `
-            --include-data-files=icons/*.ico=icons/ `
-            --verbose
+            --clang `
+            --c++-version=17 `
+            --remove-unused-functions `
+            --include-package-data=PyQt6 `
+            --include-data-dir=icons=icons `
+            --include-data-files=server_data=server_data
 
-      - name: 📋 Загрузка логов сборки (при ошибке)
+      - name: 📋 Upload build logs (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -124,10 +65,3 @@ jobs:
           path: |
             build/
             *.log
-
-      - name: ☁️ Загрузка .exe как артефакт
-        uses: actions/upload-artifact@v4
-        with:
-          name: Soft-K.exe
-          path: dist/Soft-K.exe
-          retention-days: 1

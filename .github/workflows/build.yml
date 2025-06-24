@@ -1,15 +1,3 @@
-А щас что не так
-Вот ошибка и сборка другая
-Run $env:CC = "clang-cl"
-Usage: python.exe -m nuitka [--mode=compilation_mode] [--run] [options] main_module.py
-
-    Note: For general plugin help (they often have their own
-    command line options too), consider the output of
-    '--help-plugins'.
-
-__main__.py: error: --low-memory option does not take a value
-Error: Process completed with exit code 1.
-
 name: Сборка Windows EXE с максимальной оптимизацией производительности Nuitka 2.7.10
 
 on:

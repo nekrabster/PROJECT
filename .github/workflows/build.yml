@@ -112,7 +112,6 @@ jobs:
             --include-module=ui.decorators `
             --clang `
             --lto=yes `
-            --static-libpython=yes `
             --jobs=4 `
             --python-flag=no_docstrings `
             --python-flag=no_annotations `

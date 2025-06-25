@@ -1,17 +1,17 @@
-import os, json, phonenumbers, shutil, traceback, logging
+import logging
 import sys
-from datetime import datetime
+import os
+from typing import Dict, List, Set, Any
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidgetItem, QHeaderView, QCheckBox,
-    QFileDialog, QMessageBox, QToolButton, QFrame, QInputDialog,
-    QDialog, QListWidget, QListWidgetItem, QScrollArea, QSplitter
+    QWidget, QVBoxLayout, QCheckBox, QPushButton,
+    QHBoxLayout, QLabel, QMessageBox,
+    QTableWidgetItem, QHeaderView, QFrame, QSplitter,
+    QApplication, QMenu
 )
-from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QColor, QPixmap
-from ui.session_win import SessionWindow
-from ui.sim_manager import SimManagerWindow
-from ui.loader import load_config, load_proxy
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QFont
+from ui.bots_win import BotTokenWindow
+from ui.bombardo import BotManagerDialog
 from ui.table_manager_base import BaseTableManager
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -21,22 +21,19 @@ from ui.svg_utils import create_svg_icon
 from ui.svg_icons import get_svg_icons, get_icon_color
 class StatBlock(QFrame):
     ICONS = {
-        'Сессий': '',
-        'Спам': '',
-        'Без спама': '',
-        'Премиум': '',
+        'Всего': '',
+        'Активных': '',
+        'Неактивных': '',
     }
     GRADIENTS = {
-        'Сессий': 'qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #4f8cff, stop:1 #a6c8ff);',
-        'Спам': 'qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ff5252, stop:1 #ffb199);',
-        'Без спама': 'qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #43e97b, stop:1 #38f9d7);',
-        'Премиум': 'qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ffe259, stop:1 #ffa751);',
+        'Всего': 'qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #4f8cff, stop:1 #a6c8ff);',
+        'Активных': 'qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #43e97b, stop:1 #38f9d7);',
+        'Неактивных': 'qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ff5252, stop:1 #ffb199);',
     }
     SHADOWS = {
-        'Сессий': '#4f8cff',
-        'Спам': '#ff5252',
-        'Без спама': '#43e97b',
-        'Премиум': '#ffa751',
+        'Всего': '#4f8cff',
+        'Активных': '#43e97b',
+        'Неактивных': '#ff5252',
     }
     def __init__(self, title, parent=None):
         super().__init__(parent)
@@ -71,340 +68,93 @@ class StatBlock(QFrame):
         self.title_label.setFont(title_font)
         self.title_label.setStyleSheet('color: #f7f7f7; opacity: 0.85; background: transparent; border: none;')
         layout.addWidget(self.title_label)
-    def set_number(self, number):
-        self.number_label.setText(str(number))
-
-class FilterDialog(QDialog):
-    def __init__(self, title, items, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(title)
-        self.setModal(True)
-        self.setMinimumWidth(300)
-        self.setMaximumWidth(350)
-        layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        self.selected_panel = QFrame()
-        self.selected_panel.setStyleSheet("""
-            QFrame {
-                background-color: #f5f5f5;
-                border-radius: 5px;
-                padding: 5px;
-            }
-        """)
-        selected_layout = QHBoxLayout(self.selected_panel)
-        selected_layout.setSpacing(5)
-        self.selected_labels = []
-        layout.addWidget(self.selected_panel)
-        self.list_widget = QListWidget()
-        self.list_widget.setStyleSheet("""
-            QListWidget {
-                border: 1px solid #d0d0d0;
-                border-radius: 5px;
-            }
-            QListWidget::item {
-                padding: 5px;
-                border-bottom: 1px solid #f0f0f0;
-            }
-            QListWidget::item:selected {
-                background-color: #e0e0e0;
-            }
-        """)
-        for item in items:
-            list_item = QListWidgetItem()
-            item_widget = self.create_item_widget(item)
-            self.list_widget.addItem(list_item)
-            self.list_widget.setItemWidget(list_item, item_widget)
-        scroll = QScrollArea()
-        scroll.setWidget(self.list_widget)
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                border: none;
-            }
-            QScrollBar:vertical {
-                border: none;
-                background: #f0f0f0;
-                width: 10px;
-                margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: #c0c0c0;
-                min-height: 20px;
-                border-radius: 5px;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-        """)
-        layout.addWidget(scroll)
-        
-        apply_btn = QPushButton("Применить")
-        apply_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 8px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """)
-        apply_btn.clicked.connect(self.accept)
-        layout.addWidget(apply_btn)
-        self.selected_countries = set()
-    def create_item_widget(self, item, *args):
-        item_widget = QWidget()
-        item_widget.setStyleSheet("background-color: transparent;")
-        item_layout = QHBoxLayout(item_widget)
-        item_layout.setContentsMargins(0, 0, 0, 0)
-        item_layout.setSpacing(10)
-        flag_code = item['flag']
-        flag_path = resource_path(os.path.join("icons", f"{flag_code.lower()}.png"))
-        if os.path.exists(flag_path):
-            pixmap = QPixmap(flag_path)
-            pixmap = pixmap.scaled(12, 12, Qt.AspectRatioMode.KeepAspectRatio, 
-                                 Qt.TransformationMode.SmoothTransformation)
-            flag_label = QLabel()
-            flag_label.setPixmap(pixmap)
-            flag_label.setFixedWidth(16)
-            item_layout.addWidget(flag_label)
-        else:
-            flag_label = QLabel(flag_code)
-            flag_label.setFixedWidth(30)
-            item_layout.addWidget(flag_label)        
-        code_label = QLabel(item['code'])
-        code_label.setFixedWidth(40)
-        code_label.setStyleSheet("color: #666666;")
-        item_layout.addWidget(code_label)
-        name_label = QLabel(item['name'])
-        name_label.setStyleSheet("color: #666666;")
-        item_layout.addWidget(name_label)
-        item_layout.addStretch()
-        count_label = QLabel(str(item['count']))
-        count_label.setFixedWidth(40)
-        count_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        count_label.setStyleSheet("""
-            QLabel {
-                margin-right: 10px;
-                padding-right: 5px;
-                color: #666666;
-            }
-        """)
-        item_layout.addWidget(count_label)
-        item_widget.mousePressEvent = lambda e, i=item: self.toggle_country(i)
-        item_widget.setCursor(Qt.CursorShape.PointingHandCursor)
-        item_widget.setToolTip(f"{item['name']} ({item['code']})")
-        return item_widget
-    def toggle_country(self, item, *args):
-        flag = item['flag']
-        if flag in self.selected_countries:
-            self.selected_countries.remove(flag)
-        else:
-            self.selected_countries.add(flag)
-        self.update_selected_panel()
-    def update_selected_panel(self, *args):
-        for label in self.selected_labels:
-            label.deleteLater()
-        self.selected_labels.clear()
-        for i in range(self.list_widget.count()):
-            widget = self.list_widget.itemWidget(self.list_widget.item(i))
-            if not widget:
-                continue
-            labels = widget.findChildren(QLabel)
-            if len(labels) >= 2:
-                code = labels[1].text()
-                flag_code = code
-                if flag_code in self.selected_countries:
-                    selected_widget = QWidget()
-                    selected_layout = QHBoxLayout(selected_widget)
-                    selected_layout.setContentsMargins(3, 3, 3, 3)
-                    selected_layout.setSpacing(4)
-                    flag_path = resource_path(os.path.join("icons", f"{flag_code.lower()}.png"))
-                    if os.path.exists(flag_path):
-                        pixmap = QPixmap(flag_path)
-                        pixmap = pixmap.scaled(10, 10, Qt.AspectRatioMode.KeepAspectRatio, 
-                                             Qt.TransformationMode.SmoothTransformation)
-                        flag_label = QLabel()
-                        flag_label.setPixmap(pixmap)
-                        selected_layout.addWidget(flag_label)
-                    code_label = QLabel(f"{code} ✕")
-                    code_label.setStyleSheet("color: #666666; font-size: 11px;")
-                    selected_layout.addWidget(code_label)
-                    selected_widget.setStyleSheet("""
-                        QWidget {
-                            background-color: #e0e0e0;
-                            border-radius: 3px;
-                            margin: 2px;
-                        }
-                    """)
-                    selected_widget.mousePressEvent = lambda e, f=flag_code: self.remove_filter(f)
-                    selected_widget.setCursor(Qt.CursorShape.PointingHandCursor)
-                    self.selected_labels.append(selected_widget)
-                    self.selected_panel.layout().addWidget(selected_widget)
-        if self.selected_panel.layout().count() > 0:
-            self.selected_panel.layout().addStretch()   
-    def remove_filter(self, flag):
-        self.selected_countries.remove(flag)
-        self.update_selected_panel()
-    def get_selected_items(self):
-        return list(self.selected_countries)
-
-class BooleanFilterDialog(QDialog):
-    def __init__(self, title, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(title)
-        self.setModal(True)
-        self.setMinimumWidth(300)
-        self.setMaximumWidth(400)
-        layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        self.selected_panel = QFrame()
-        self.selected_panel.setStyleSheet("""
-            QFrame {
-                background-color: #f5f5f5;
-                border-radius: 5px;
-                padding: 5px;
-            }
-        """)
-        selected_layout = QHBoxLayout(self.selected_panel)
-        selected_layout.setSpacing(5)
-        self.selected_label = None
-        layout.addWidget(self.selected_panel)
-        self.list_widget = QListWidget()
-        self.list_widget.setStyleSheet("""
-            QListWidget {
-                border: 1px solid #d0d0d0;
-                border-radius: 5px;
-            }
-            QListWidget::item {
-                padding: 5px;
-                border-bottom: 1px solid #f0f0f0;
-            }
-            QListWidget::item:selected {
-                background-color: #e0e0e0;
-            }
-        """)
-        for item in ["Все", "Да", "Нет"]:
-            list_item = QListWidgetItem()
-            list_item.setFlags(list_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            list_item.setCheckState(Qt.CheckState.Unchecked)            
-            item_widget = QWidget()
-            item_layout = QHBoxLayout(item_widget)
-            item_layout.setContentsMargins(0, 0, 0, 0)
-            item_layout.setSpacing(10)
-            status_label = QLabel(item)
-            item_layout.addWidget(status_label) 
-            count_label = QLabel("0")
-            count_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-            item_layout.addWidget(count_label)            
-            item_layout.addStretch()
-            self.list_widget.addItem(list_item)
-            self.list_widget.setItemWidget(list_item, item_widget)
-        layout.addWidget(self.list_widget)
-        apply_btn = QPushButton("Применить")
-        apply_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 8px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """)
-        apply_btn.clicked.connect(self.accept)
-        layout.addWidget(apply_btn)
-        self.list_widget.itemChanged.connect(self.update_selected_panel)
-    def update_selected_panel(self, item, *args):
-        if self.selected_label:
-            self.selected_label.deleteLater()
-            self.selected_label = None
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            if item.checkState() == Qt.CheckState.Checked:
-                widget = self.list_widget.itemWidget(item)
-                text = widget.findChild(QLabel).text()
-                
-                label = QLabel(f"{text} ✕")
-                label.setStyleSheet("""
-                    QLabel {
-                        background-color: #e0e0e0;
-                        padding: 3px 8px;
-                        border-radius: 3px;
-                        margin: 2px;
-                    }
-                """)
-                label.mousePressEvent = lambda e, t=text: self.remove_filter(t)
-                self.selected_label = label
-                self.selected_panel.layout().addWidget(label)
-                break        
-        if self.selected_panel.layout().count() > 0:
-            self.selected_panel.layout().addStretch()
-    def remove_filter(self, text, *args):
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            widget = self.list_widget.itemWidget(item)
-            if widget.findChild(QLabel).text() == text:
-                item.setCheckState(Qt.CheckState.Unchecked)
-                break
-    def get_value(self, *args):
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            if item.checkState() == Qt.CheckState.Checked:
-                return self.list_widget.itemWidget(item).findChild(QLabel).text()
-        return "Все"
-
-class SessionManagerWindow(BaseTableManager):
+    def set_number(self, number, *args, **kwargs):
+        try:
+            self.number_label.setText(str(number))
+            self.number_label.repaint()
+            logging.getLogger('BotManagerWindow').info(f"Обновлен блок {self.title}: {number}")
+        except Exception as e:
+            logging.getLogger('BotManagerWindow').error(f"Ошибка обновления блока {self.title}: {e}")
+class BotManagerWindow(BaseTableManager):
     stats_updated = pyqtSignal(dict)
-    def __init__(self, session_folder, parent=None):
+    def __init__(self, token_folder, parent=None):
         super().__init__(parent)
-        self.session_folder = session_folder
+        self.token_folder = token_folder
         self.main_window = parent
-        self.logger = logging.getLogger('SessionManagerWindow')
+        self._is_running = True
+        self.logger = logging.getLogger('BotManagerWindow')
         self.logger.setLevel(logging.INFO)
-        self.config = load_config()
-        self.proxy = load_proxy(self.config) if self.config else None
-        if parent and hasattr(parent, 'config_changed'):
-            self.main_window.config_changed.connect(self.on_config_changed)
         self.filters = {
-            'geo': [],
-            'spamblock': "Все",
-            'premium': "Все"
+            'active': "Все",
+            'description': "Все"
         }
+        self.all_bots_data: Dict[str, Dict[str, Any]] = {}
+        self.current_display_tokens: List[str] = []
+        self.total_bots = 0 
+        self.loaded_bots_count_for_current_fetch_batch = 0
+        self.current_batch_total_to_fetch = 0  
+        self._update_timer = QTimer()
+        self._update_timer.setSingleShot(True)
+        self._update_timer.timeout.connect(self._delayed_table_update)
+        self._pending_token_updates_for_ui = set()
+        self._ui_update_batch_timer = QTimer(self)
+        self._ui_update_batch_timer.setSingleShot(True)
+        self._ui_update_batch_timer.setInterval(100) 
+        self._ui_update_batch_timer.timeout.connect(self._process_batched_ui_updates)
+        self._batch_size = 50
+        self._current_batch = [] 
+        self.svg_icons = get_svg_icons()
+        self.update_icons()  
+        self.setup_ui()
+        self.bot_token_window.tokens_updated.connect(self.on_tokens_updated)
+        self.bot_token_window.files_updated.connect(self.on_folder_changed)
+        self.bot_token_window.bot_details_updated.connect(self._on_bot_details_updated)
         self.resize_timer = QTimer()
         self.resize_timer.setSingleShot(True)
         self.resize_timer.timeout.connect(self.update_table_dimensions)
-        self.svg_icons = get_svg_icons()
-        self.update_icons()
-        self.setup_ui()
-        self.session_window.sessions_updated.connect(self.on_sessions_updated)
-        self.session_window.folder_updated.connect(self.on_folder_changed)
-        self.load_sessions()
-    def resizeEvent(self, event):
+        QTimer.singleShot(100, self.initial_load_sequence)
+    def _delayed_table_update(self, *args, **kwargs):
+        self.populate_table_with_selected_tokens()
+        self.update_stats_for_selected_tokens()
+        self.update_table_dimensions()
+        self.table.viewport().update()
+    def _process_batched_ui_updates(self):
+        if not self._pending_token_updates_for_ui:
+            return        
+        self.logger.debug(f"Processing batched UI updates for {len(self._pending_token_updates_for_ui)} tokens.")
+        for token_to_update in list(self._pending_token_updates_for_ui): # Iterate over a copy
+            if token_to_update in self.current_display_tokens and token_to_update in self.all_bots_data:
+                row_index = -1
+                for i in range(self.table.rowCount()):
+                    token_item_in_row = self.table.item(i, 4) 
+                    if token_item_in_row and token_item_in_row.text() == token_to_update:
+                        row_index = i
+                        break
+                if row_index != -1:
+                    bot_info = self.all_bots_data[token_to_update]
+                    username_val = bot_info.get('username', 'Загрузка...') 
+                    bot_name_val = bot_info.get('name', username_val)
+                    has_error_val = bot_info.get('has_error', True)
+                    name_item = self.create_table_item(bot_name_val, has_error_val)
+                    self.table.setItem(row_index, 2, name_item)
+                    username_item = self.create_table_item(username_val, has_error_val)
+                    self.table.setItem(row_index, 3, username_item)
+        self._pending_token_updates_for_ui.clear()
+        self.update_stats_for_selected_tokens()
+        self.update_table_dimensions()
+        self.table.viewport().update()
+    def resizeEvent(self, event, *args, **kwargs):
         super().resizeEvent(event)
         self.resize_timer.start(100)
-    def update_table_dimensions(self, *args, **kwargs):
-        super().update_table_dimensions()
-    def update_icons(self, *args, **kwargs):
-        is_dark = getattr(self.main_window, 'is_dark_theme', False) if self.main_window else False
-        self.icon_color = get_icon_color(is_dark)
     def setup_ui(self, *args):
-        self.session_window = SessionWindow(self.session_folder, parent=self)
-        self.session_window.setStyleSheet("""
-            QWidget { background-color: transparent; }
-            QGroupBox { border: 1px solid #CCCCCC; border-radius: 3px; margin-top: 1em; padding-top: 1em; background-color: transparent; }
-            QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; padding: 0 3px; margin-left: 5px; }
-        """)        
+        self.bot_token_window = BotTokenWindow(token_folder_path=self.parent().bot_token_folder if self.parent() else self.token_folder)        
         main_layout = QHBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)        
-        left_panel_layout = QVBoxLayout()
+        left_panel = QWidget()
+        left_panel_layout = QVBoxLayout(left_panel)
         left_panel_layout.setSpacing(0)
-        left_panel_layout.setContentsMargins(0, 0, 0, 0)
+        left_panel_layout.setContentsMargins(0, 0, 0, 0)        
         stats_panel = QFrame()
         stats_panel.setStyleSheet("""
             QFrame {
@@ -417,394 +167,254 @@ class SessionManagerWindow(BaseTableManager):
         stats_layout = QHBoxLayout(stats_panel)
         stats_layout.setSpacing(5)
         stats_layout.setContentsMargins(5, 5, 5, 5)
-        self.sessions_block = StatBlock("Сессий")
-        self.spam_block = StatBlock("Спам")
-        self.non_spamblock_block = StatBlock("Без спама")
-        self.premium_block = StatBlock("Премиум")        
-        stats_layout.addWidget(self.sessions_block)
-        stats_layout.addWidget(self.spam_block)
-        stats_layout.addWidget(self.non_spamblock_block)
-        stats_layout.addWidget(self.premium_block)
+        self.total_block = StatBlock("Всего")
+        self.active_block = StatBlock("Активных")
+        self.inactive_block = StatBlock("Неактивных")
+        stats_layout.addWidget(self.total_block)
+        stats_layout.addWidget(self.active_block)
+        stats_layout.addWidget(self.inactive_block)
         stats_layout.addStretch()
         left_panel_layout.addWidget(stats_panel)
+        
         buttons_panel = QHBoxLayout()
         buttons_panel.setSpacing(5)
         buttons_panel.setContentsMargins(5, 5, 5, 5)
-        self.create_folder_btn = QToolButton()
-        folder_icon = create_svg_icon(self.svg_icons['folder'], getattr(self, 'icon_color', '#87CEEB'))
-        self.create_folder_btn.setIcon(folder_icon)
-        self.create_folder_btn.setIconSize(QSize(24, 24))
-        self.create_folder_btn.setToolTip("Создать новую папку")
-        self.create_folder_btn.clicked.connect(self.create_new_folder)
-        self.move_sessions_btn = QToolButton()
-        move_icon = create_svg_icon(self.svg_icons['folder_move'], getattr(self, 'icon_color', '#87CEEB'))
-        self.move_sessions_btn.setIcon(move_icon)
-        self.move_sessions_btn.setIconSize(QSize(24, 24))
-        self.move_sessions_btn.setToolTip("Переместить выбранные сессии")
-        self.move_sessions_btn.clicked.connect(self.move_selected_sessions)
-        buttons_panel.addWidget(self.create_folder_btn)
-        buttons_panel.addWidget(self.move_sessions_btn)
-        
+
         column_config = [
             {"label": "Select", "resize_mode": QHeaderView.ResizeMode.Fixed, "width": 48},
             {"label": "#", "resize_mode": QHeaderView.ResizeMode.Interactive},
-            {"label": "Номер", "resize_mode": QHeaderView.ResizeMode.Interactive},
-            {"label": "Гео", "resize_mode": QHeaderView.ResizeMode.Interactive},
-            {"label": "Спамблок", "resize_mode": QHeaderView.ResizeMode.Interactive},
-            {"label": "Окончание спама", "resize_mode": QHeaderView.ResizeMode.Interactive},
-            {"label": "Имя / Фамилия", "resize_mode": QHeaderView.ResizeMode.Interactive},
-            {"label": "Премиум", "resize_mode": QHeaderView.ResizeMode.Interactive},
-            {"label": "Изменить", "resize_mode": QHeaderView.ResizeMode.Fixed, "width": 80}
+            {"label": "Имя бота", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Username", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Токен", "resize_mode": QHeaderView.ResizeMode.Interactive},
+            {"label": "Действия", "resize_mode": QHeaderView.ResizeMode.Fixed, "width": 80}
         ]
-        
-        self.setup_table_ui(column_config, left_panel_layout)
-        
+        self.setup_table_ui(column_config, left_panel_layout)  
         buttons_panel.addWidget(self.search_input)
-        buttons_panel.addStretch()    
+        buttons_panel.addStretch()
         left_panel_layout.insertLayout(1, buttons_panel)
-
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.show_context_menu)
         left_panel_wrapper_widget = QWidget()
         left_panel_wrapper_widget.setLayout(left_panel_layout)
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(left_panel_wrapper_widget)
-        splitter.addWidget(self.session_window)
+        splitter.addWidget(self.bot_token_window)
         splitter.setSizes([700, 250])
         splitter.setCollapsible(0, False)
         splitter.setCollapsible(1, False)
         main_layout.addWidget(splitter)
-    def get_checkbox_for_row(self, row):
-        return super().get_checkbox_for_row(row)
-    def handle_header_click(self, column, *args):
-        if column == 3:  # Фильтр по гео
-            geo_counts = {}
-            for row in range(self.table.rowCount()):
-                cell_widget = self.table.cellWidget(row, 3)
-                if cell_widget:
-                    labels = cell_widget.findChildren(QLabel)
-                    country_code = ""
-                    if len(labels) >= 2:
-                        country_code = labels[1].text().strip()
-                    if not country_code:
-                        phone_item = self.table.item(row, 2)
-                        if phone_item:
-                            phone = phone_item.text()
-                            country_code = self.get_country_from_phone(phone)
-                    if country_code:
-                        geo_counts[country_code] = geo_counts.get(country_code, 0) + 1
-            items = []
-            for code, count in geo_counts.items():
-                country_name = self.get_country_name(code)
-                items.append({
-                    'flag': code,
-                    'code': code,
-                    'name': country_name,
-                    'count': count
-                })
-            dialog = FilterDialog("Фильтр по гео", items, self)
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                self.filters['geo'] = dialog.get_selected_items()
-                self.apply_filters()
-        elif column == 4: # Фильтр по спамблоку
-            if self.filters['spamblock'] == "Все":
-                self.filters['spamblock'] = "Да"
-            elif self.filters['spamblock'] == "Да":
-                self.filters['spamblock'] = "Нет"
-            else:
-                self.filters['spamblock'] = "Все"            
-            header_item = self.table.horizontalHeaderItem(4)
-            if header_item:
-                base_text = "Спамблок"
-                if self.filters['spamblock'] != "Все":
-                    base_text += f" ({self.filters['spamblock']})"
-                header_item.setText(base_text + " ▼")
-            self.apply_filters()        
-        elif column == 7: # Фильтр по премиуму
-            if self.filters['premium'] == "Все":
-                self.filters['premium'] = "Да"
-            elif self.filters['premium'] == "Да":
-                self.filters['premium'] = "Нет"
-            else:
-                self.filters['premium'] = "Все"
-            header_item = self.table.horizontalHeaderItem(7)
-            if header_item:
-                base_text = "Премиум"
-                if self.filters['premium'] != "Все":
-                    base_text += f" ({self.filters['premium']})"
-                header_item.setText(base_text + " ▼") 
-            self.apply_filters()
+    def handle_header_click(self, column, *args, **kwargs):
+        super().handle_header_click(column)
+    def calculate_stats(self, display_tokens: List[str] = None, *args, **kwargs):
+        if display_tokens is None:
+            target_tokens = self.current_display_tokens if self.current_display_tokens else list(self.all_bots_data.keys())
         else:
-            super().handle_header_click(column)
-    def get_country_from_phone(self, phone, *args):
+            target_tokens = display_tokens
+        total_bots = len(target_tokens)
+        active_count = 0
+        inactive_count = 0
+        self.logger.info(f"Подсчет статистики для {total_bots} ботов из target_tokens")
+        for token in target_tokens:
+            bot_data = self.all_bots_data.get(token)            
+            username = None
+            name = None
+            is_active = False
+            log_reason = "данные отсутствуют"
+            if bot_data:
+                username = bot_data.get('username')
+                name = bot_data.get('name')
+                if not bot_data.get('has_error', True):
+                    is_active = True
+                log_reason = f"username: {username}, name: {name}, has_error: {bot_data.get('has_error')}"
+            else:
+                username_btw = self.bot_token_window.token_usernames.get(token)
+                name_btw = self.bot_token_window.token_names.get(token, username_btw)
+                if username_btw and not('Ошибка' in str(username_btw) or username_btw == 'Недоступен' or username_btw == 'Загрузка...'):
+                    is_active = True
+                log_reason = f"данные из BotTokenWindow: username: {username_btw}, name: {name_btw}"
+            if is_active:
+                active_count += 1
+                self.logger.debug(f"Активный бот: {token} ({log_reason})")
+            else:
+                inactive_count += 1
+                self.logger.debug(f"Неактивный бот: {token} ({log_reason})")
+        stats = {
+            'total': total_bots,
+            'active': active_count,
+            'inactive': inactive_count
+        }
+        self.logger.info(f"Статистика: всего={total_bots}, активных={active_count}, неактивных={inactive_count}")
+        QTimer.singleShot(0, lambda: self._update_stat_blocks(stats))
+        return stats
+    def _update_stat_blocks(self, stats, *args, **kwargs):
         try:
-            phone = ''.join(c for c in phone if c.isdigit() or c == '+')
-            if not phone.startswith('+'):
-                phone = '+' + phone
-            parsed_number = phonenumbers.parse(phone)
-            if phonenumbers.is_valid_number(parsed_number):
-                country_code = phonenumbers.region_code_for_number(parsed_number)
-                if country_code:
-                    return country_code
-            return "XX"
+            if not self.total_block or not self.active_block or not self.inactive_block:
+                self.logger.warning("Блоки статистики не инициализированы")
+                return                
+            self.total_block.set_number(stats['total'])
+            self.active_block.set_number(stats['active'])
+            self.inactive_block.set_number(stats['inactive'])
+            self.logger.info("Блоки статистики обновлены")
         except Exception as e:
-            print(f"Error parsing phone number {phone}: {e}")
-            return "XX" 
-    def get_flag_label(self, country_code, size=16, show_code=True, *args):
-        if not country_code or country_code == "XX":
-            country_code = "xx" 
-        widget = QWidget()
-        layout = QHBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        flag_path = resource_path(os.path.join("icons", f"{country_code.lower()}.png"))
-        if os.path.exists(flag_path):
-            pixmap = QPixmap(flag_path)
-            pixmap = pixmap.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, 
-                                 Qt.TransformationMode.SmoothTransformation)
-            flag_label = QLabel()
-            flag_label.setPixmap(pixmap)
-            flag_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(flag_label)
-        if show_code:
-            code_label = QLabel(country_code.upper())
-            code_label.setStyleSheet("color: #666666; font-size: 10px;")
-            code_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(code_label)
-        return widget
-    def get_country_name(self, country_code, *args):
-        country_names = {
-            'RU': 'Россия', 'US': 'США', 'GB': 'Великобритания', 'DE': 'Германия', 
-            'FR': 'Франция', 'IT': 'Италия', 'ES': 'Испания', 'PT': 'Португалия', 
-            'NL': 'Нидерланды', 'BE': 'Бельгия', 'CH': 'Швейцария', 'AT': 'Австрия', 
-            'SE': 'Швеция', 'NO': 'Норвегия', 'DK': 'Дания', 'FI': 'Финляндия', 
-            'PL': 'Польша', 'CZ': 'Чехия', 'SK': 'Словакия', 'HU': 'Венгрия', 
-            'RO': 'Румыния', 'BG': 'Болгария', 'GR': 'Греция', 'TR': 'Турция', 
-            'UA': 'Украина', 'BY': 'Беларусь', 'KZ': 'Казахстан', 'UZ': 'Узбекистан', 
-            'AZ': 'Азербайджан', 'AM': 'Армения', 'GE': 'Грузия', 'MD': 'Молдова', 
-            'LV': 'Латвия', 'LT': 'Литва', 'EE': 'Эстония', 'IL': 'Израиль', 
-            'SA': 'Саудовская Аравия', 'AE': 'ОАЭ', 'QA': 'Катар', 'KW': 'Кувейт', 
-            'BH': 'Бахрейн', 'OM': 'Оман', 'IN': 'Индия', 'PK': 'Пакистан', 
-            'BD': 'Бангладеш', 'LK': 'Шри-Ланка', 'NP': 'Непал', 'BT': 'Бутан', 
-            'MV': 'Мальдивы', 'CN': 'Китай', 'JP': 'Япония', 'KR': 'Южная Корея', 
-            'KP': 'Северная Корея', 'VN': 'Вьетнам', 'TH': 'Таиланд', 'MY': 'Малайзия', 
-            'SG': 'Сингапур', 'ID': 'Индонезия', 'PH': 'Филиппины', 'AU': 'Австралия', 
-            'NZ': 'Новая Зеландия', 'CA': 'Канада', 'MX': 'Мексика', 'BR': 'Бразилия', 
-            'AR': 'Аргентина', 'CL': 'Чили', 'CO': 'Колумбия', 'PE': 'Перу', 
-            'VE': 'Венесуэла', 'ZA': 'ЮАР', 'EG': 'Египет', 'MA': 'Марокко', 
-            'DZ': 'Алжир', 'TN': 'Тунис', 'LY': 'Ливия', 'SD': 'Судан', 'ET': 'Эфиопия', 
-            'KE': 'Кения', 'NG': 'Нигерия', 'GH': 'Гана', 'SN': 'Сенегал', 
-            'CI': 'Кот-д\'Ивуар', 'CM': 'Камерун', 'AO': 'Ангола', 'MZ': 'Мозамбик', 
-            'TZ': 'Танзания', 'UG': 'Уганда', 'RW': 'Руанда', 'BI': 'Бурунди', 
-            'CD': 'ДР Конго', 'CG': 'Республика Конго', 'GA': 'Габон', 
-            'GQ': 'Экваториальная Гвинея', 'CF': 'ЦАР', 'TD': 'Чад', 'NE': 'Нигер', 
-            'ML': 'Мали', 'BF': 'Буркина-Фасо', 'BJ': 'Бенин', 'TG': 'Того', 
-            'GM': 'Гамбия', 'GN': 'Гвинея', 'GW': 'Гвинея-Бисау', 'SL': 'Сьерра-Леоне', 
-            'LR': 'Либерия', 'MR': 'Мавритания', 'SO': 'Сомали', 'DJ': 'Джибути', 
-            'ER': 'Эритрея', 'SS': 'Южный Судан', 'ZM': 'Замбия', 'ZW': 'Зимбабве', 
-            'BW': 'Ботсвана', 'NA': 'Намибия', 'SZ': 'Свазиленд', 'LS': 'Лесото', 
-            'MG': 'Мадагаскар', 'KM': 'Коморы', 'MU': 'Маврикий', 'SC': 'Сейшелы', 
-            'CV': 'Кабо-Верде', 'ST': 'Сан-Томе и Принсипи',
-            'XX': 'Неизвестно'
-        }
-        return country_names.get(country_code.upper(), country_code.upper())
-    def get_country_code_from_flag(self, country_code, *args):
-        return country_code
-    def filter_rows_by_conditions(self, conditions, *args, **kwargs):
-        super().filter_rows_by_conditions(conditions)
-    def apply_filters(self, *args):
-        conditions = []
-        if self.filters['geo']:
-            def geo_cond(row):
-                geo_widget = self.table.cellWidget(row, 3)
-                if geo_widget:
-                    labels = geo_widget.findChildren(QLabel)
-                    country_code = ""
-                    if len(labels) >= 2:
-                        country_code = labels[1].text().strip()
-                    return country_code in self.filters['geo']
-                return False
-            conditions.append(geo_cond)
-        if self.filters['spamblock'] != "Все":
-            def spamblock_cond(row):
-                spamblock_item = self.table.item(row, 4)
-                if spamblock_item:
-                    value = "Да" if self.filters['spamblock'] == "Да" else "Нет"
-                    return spamblock_item.text() == value
-                return False
-            conditions.append(spamblock_cond)
-        if self.filters['premium'] != "Все":
-            def premium_cond(row):
-                premium_item = self.table.item(row, 7)
-                if premium_item:
-                    value = "Да" if self.filters['premium'] == "Да" else "Нет"
-                    return premium_item.text() == value
-                return False
-            conditions.append(premium_cond)
-        
-        search_text = self.search_input.text().lower()
-        if search_text:
-            def search_cond(row):
-                for col in range(self.table.columnCount()):
-                    if col == 8: continue
-                    item = self.table.item(row, col)
-                    if item and search_text in item.text().lower():
-                        return True
-                return False
-            conditions.append(search_cond)
-            
-        self.filter_rows_by_conditions(conditions)
-    def update_row_numbers(self, *args):
-        super().update_row_numbers()
-    def on_folder_changed(self, folders):
-        self.load_sessions()
-        self.update_stats()
-        self.apply_filters()
-    def on_sessions_updated(self, valid_sessions):
-        if not valid_sessions:
-            self.logger.warning("Нет ни одной сессии с корректными API_ID и API_HASH. Операция не будет выполнена.")
-            self.move_sessions_btn.setEnabled(False)
+            self.logger.error(f"Ошибка обновления блоков статистики: {e}")
+    def on_bot_info_loaded(self, *args, **kwargs):
+        self.logger.info("Информация о ботах загружена, обновляем таблицу")
+        self.initial_load_sequence()
+    def refresh_table_ui(self, *args, **kwargs):
+        if self.table:
+            self.table.viewport().update()
+            self.table.update()
+            QApplication.processEvents()
+    def initial_load_sequence(self, *args, **kwargs):
+        self.logger.info("Initial load: Triggering BotTokenWindow refresh.")
+        if self.bot_token_window:
+             self.bot_token_window.refresh_tokens()
+    def _update_table_row(self, row: int, bot_info: Dict[str, Any], *args, **kwargs):
+        token = bot_info.get('token')
+        if not token:
+            self.logger.warning(f"Attempted to update row {row} without token in bot_info.")
+            return
+        username = bot_info.get('username', 'Загрузка...') 
+        bot_name = bot_info.get('name', username)
+        has_error = bot_info.get('has_error', True)
+        name_item = self.create_table_item(bot_name, has_error)
+        self.table.setItem(row, 2, name_item)
+        username_item = self.create_table_item(username, has_error)
+        self.table.setItem(row, 3, username_item)        
+        token_item = self.table.item(row, 4)
+        if token_item:
+            if token_item.text() != token:
+                token_item.setText(token)
         else:
-            self.move_sessions_btn.setEnabled(True)
-            self.load_sessions()
-            self.update_stats()
-            self.apply_filters()
-    def calculate_stats(self, sessions):
-        total_sessions = len(sessions)
-        spam_count = sum(1 for s in sessions if s.get('is_spamblocked'))
-        non_spamblock_count = total_sessions - spam_count
-        premium_count = sum(1 for s in sessions if s.get('is_premium'))
-        return {
-            'total': total_sessions,
-            'spam': spam_count,
-            'non_spam': non_spamblock_count,
-            'premium': premium_count
-        }
-    def get_country_info(self, phone, size=16, show_code=True):
-        country_code = self.get_country_from_phone(phone)
-        country_name = self.get_country_name(country_code)
-        flag_widget = self.get_flag_label(country_code, size=size, show_code=show_code)
-        return country_code, country_name, flag_widget
-    def load_sessions(self, *args):
-        self.table.setRowCount(0)
-        sessions = []
-        selected_sessions = self.session_window.get_selected_sessions()
-        self.logger.info(f"Всего выбрано сессий: {len(selected_sessions)}")
-        for session_name in selected_sessions:
-            try:
-                phone = os.path.splitext(os.path.basename(session_name))[0]
-                session_file, json_file = self.find_session_and_json_files(phone)
-                session_path = session_file if session_file else os.path.join(self.session_window.session_folder, session_name)
-                json_path = json_file if json_file else session_path.replace('.session', '.json')
-                session_data = {
-                    'phone': phone,
-                    'is_spamblocked': False,
-                    'name': "",
-                    'is_premium': False,
-                    'spam_count': 0
-                }
-                if json_file and os.path.exists(json_file):
-                    try:
-                        with open(json_file, 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            session_data.update({
-                                'phone': data.get('phone', phone),
-                                'spam_count': data.get('spam_count', 0),
-                                'is_spamblocked': data.get('spamblock', False),
-                                'first_name': data.get('first_name', ''),
-                                'last_name': data.get('last_name', ''),
-                                'is_premium': data.get('is_premium', False),
-                                'spamblock_end_date': data.get('spamblock_end_date'),
-                                'spamblock_check_date': data.get('spamblock_check_date'),
-                            })
-                            spamblock_end_date = data.get('spamblock_end_date')
-                            if spamblock_end_date:
-                                try:
-                                    spamblock_end_date_dt = datetime.fromisoformat(spamblock_end_date)
-                                    if datetime.now() < spamblock_end_date_dt:
-                                        session_data['is_spamblocked'] = True
-                                except Exception:
-                                    pass
-                    except Exception as e:
-                        self.logger.error(f"Ошибка чтения JSON для {phone}: {str(e)}")
-                country_code, country_name, flag_widget = self.get_country_info(session_data['phone'])
-                session_data.update({
-                    'country_code': country_code,
-                    'country_name': country_name,
-                    'flag_widget': flag_widget,
-                    'session_path': session_path,
-                    'json_path': json_path,
-                    'name': f"{session_data.get('first_name', '')} {session_data.get('last_name', '')}".strip()
-                })     
-                sessions.append(session_data)
-                self.logger.debug(f"Добавлена сессия: {phone} (спамблок: {session_data['is_spamblocked']})")
-            except Exception as e:
-                self.logger.error(f"Ошибка обработки сессии {session_name}: {str(e)}")
-                traceback.print_exc()
-        stats = self.calculate_stats(sessions)
-        self.sessions_block.set_number(stats['total'])
-        self.spam_block.set_number(stats['spam'])
-        self.non_spamblock_block.set_number(stats['non_spam'])
-        self.premium_block.set_number(stats['premium'])
-        self.stats_updated.emit(stats)
-        self.table.setRowCount(len(sessions))
-        self.logger.info(f"Установлено строк в таблице: {len(sessions)}")
-        for i, session in enumerate(sessions):
-            try:
+            token_item = self.create_table_item(token)
+            self.table.setItem(row, 4, token_item)
+        self.table.viewport().update()
+        self.logger.debug(f"Row {row} updated in table for token ...{token[-6:]}. Name: {bot_name}, User: {username}")
+        self._pending_token_updates_for_ui.add(token)
+        if not self._ui_update_batch_timer.isActive():
+            self._ui_update_batch_timer.start()
+    def populate_table_with_selected_tokens(self, *args, **kwargs):
+        self.logger.info(f"Populating table with {len(self.current_display_tokens)} display tokens.")
+        self.table.setUpdatesEnabled(False)
+        self.table.clearSelection()
+        try:
+            self.table.setRowCount(0)            
+            if not self.current_display_tokens:
+                self.logger.info("No tokens to display in table.")
+                self.table.setUpdatesEnabled(True)
+                self.update_row_numbers()
+                self.update_edit_button_state()
+                self.update_table_dimensions()
+                self.apply_filters()
+                self.update_stats_for_selected_tokens()
+                return                
+            self.table.setRowCount(len(self.current_display_tokens))
+            self.logger.debug(f"Table row count set to {len(self.current_display_tokens)}.")            
+            for i, token_str in enumerate(self.current_display_tokens):
                 checkbox = QCheckBox()
-                checkbox_widget = QWidget()
-                checkbox_layout = QHBoxLayout(checkbox_widget)
-                checkbox_layout.addWidget(checkbox)
-                checkbox_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                checkbox_layout.setContentsMargins(0, 0, 0, 0)
-                checkbox_widget.setStyleSheet("background-color: transparent;")
                 checkbox.stateChanged.connect(self.update_edit_button_state)
+                checkbox_widget = QWidget()
+                layout = QHBoxLayout(checkbox_widget)
+                layout.setContentsMargins(0, 0, 0, 0)
+                layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(checkbox)
                 self.table.setCellWidget(i, 0, checkbox_widget)
-                number_item = self.create_table_item(str(i + 1))
-                number_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(i, 1, number_item)
-                phone_item = self.create_table_item(session['phone'])
-                phone_item.setData(Qt.ItemDataRole.UserRole, session['phone'])
-                self.table.setItem(i, 2, phone_item)
-                self.table.setCellWidget(i, 3, session['flag_widget'])
-                spamblock_item = self.create_table_item("Да" if session['is_spamblocked'] else "Нет")
-                spamblock_item.setData(Qt.ItemDataRole.UserRole, session['is_spamblocked'])
-                spamblock_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                spamblock_item.setForeground(QColor(255, 0, 0) if session['is_spamblocked'] else QColor(0, 128, 0))
-                self.table.setItem(i, 4, spamblock_item)
-                spam_end = ""
-                if session['is_spamblocked']:
-                    spam_end = session.get('spamblock_end_date') or session.get('spamblock_check_date') or ""
-                    if spam_end:
-                        try:
-                            dt = datetime.fromisoformat(spam_end)
-                            spam_end = dt.strftime("%d.%m.%Y")
-                        except Exception:
-                            pass
-                spam_end_item = self.create_table_item(spam_end)
-                spam_end_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(i, 5, spam_end_item)
-                self.table.setItem(i, 6, self.create_table_item(session['name']))
-                premium_item = self.create_table_item("Да" if session['is_premium'] else "Нет")
-                premium_item.setData(Qt.ItemDataRole.UserRole, session['is_premium'])
-                premium_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(i, 7, premium_item)
+                num_item = QTableWidgetItem(str(i + 1))
+                num_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.table.setItem(i, 1, num_item)
+                bot_data = self.all_bots_data.get(token_str)
+                name_to_display = "Загрузка..."
+                username_to_display = "Загрузка..."
+                is_error_initial = True
+                if bot_data:
+                    name_to_display = bot_data.get('name', username_to_display)
+                    username_to_display = bot_data.get('username', "N/A")
+                    is_error_initial = bot_data.get('has_error', True)
+                name_item = self.create_table_item(name_to_display, is_error_initial)
+                self.table.setItem(i, 2, name_item)                
+                username_item = self.create_table_item(username_to_display, is_error_initial)
+                self.table.setItem(i, 3, username_item)                
+                token_item = self.create_table_item(token_str)
+                self.table.setItem(i, 4, token_item)                
+                actions_widget = QWidget()
+                actions_layout = QHBoxLayout(actions_widget)
+                actions_layout.setContentsMargins(0, 0, 0, 0)
+                actions_layout.setSpacing(8)
                 edit_btn = QPushButton()
                 edit_icon = create_svg_icon(self.svg_icons['edit'], getattr(self, 'icon_color', '#87CEEB'))
                 edit_btn.setIcon(edit_icon)
                 edit_btn.setToolTip("Изменить")
                 edit_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #e0f7fa; border-radius: 4px; }")
                 edit_btn.setIconSize(edit_btn.sizeHint())
-                edit_btn.clicked.connect(lambda checked, row=i: self.open_sim_manager(row))
-                self.table.setCellWidget(i, 8, edit_btn)
-                self.logger.debug(f"Добавлена строка {i + 1} для сессии {session['phone']}")
-            except Exception as e:
-                self.logger.error(f"Ошибка добавления строки {i}: {str(e)}")
-                traceback.print_exc()
-        self.apply_filters()
-        self.update_edit_button_state()
-        self.table.viewport().update()
-        self.update_table_dimensions()
+                edit_btn.clicked.connect(lambda checked, r=i, t=token_str: self.open_bot_manager(r, t))
+                actions_layout.addWidget(edit_btn)
+                del_btn = QPushButton()
+                del_icon = create_svg_icon(self.svg_icons['delete'], getattr(self, 'icon_color', '#87CEEB'))
+                del_btn.setIcon(del_icon)
+                del_btn.setToolTip("Удалить")
+                del_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #ffebee; border-radius: 4px; }")
+                del_btn.setIconSize(del_btn.sizeHint())
+                del_btn.clicked.connect(lambda checked, r=i, t=token_str: self.on_delete_token(r, t))
+                actions_layout.addWidget(del_btn)
+                actions_layout.addStretch()
+                self.table.setCellWidget(i, 5, actions_widget)
+                self.logger.debug(f"Row {i} created for token ...{token_str[-6:]}")            
+        finally:
+            self.table.setUpdatesEnabled(True)
+            self.update_row_numbers()
+            self.update_edit_button_state()
+            self.update_table_dimensions()
+            self.apply_filters()
+        self.logger.info("Table population finished.")
+    def _setup_action_buttons(self, row, token_str):
+        pass
+    def update_stats_for_selected_tokens(self, *args, **kwargs):
+        self.logger.debug(f"Updating stats for {len(self.current_display_tokens)} currently displayed tokens.")
+        if not self.current_display_tokens:
+            self.logger.debug("No tokens to display, using all known tokens for stats")
+            stats = self.calculate_stats()
+        else:
+            stats = self.calculate_stats(self.current_display_tokens)
+        self.stats_updated.emit(stats)
+    def on_tokens_updated(self, selected_tokens: List[str], is_initial_call=False, *args, **kwargs):
+        self.logger.info(f"Signal on_tokens_updated received. Selected tokens count: {len(selected_tokens)}. Initial: {is_initial_call}")
+        if not hasattr(self, 'current_display_tokens') or set(self.current_display_tokens) != set(selected_tokens):
+            self.current_display_tokens = sorted(list(selected_tokens))
+            self.logger.info(f"current_display_tokens updated to {len(self.current_display_tokens)} tokens. Triggering table populate.")            
+            self.populate_table_with_selected_tokens()
+        else:
+            self.logger.info("current_display_tokens is the same as selected_tokens. No full table populate needed unless forced.")
+        self.update_stats_for_selected_tokens() 
+    def on_folder_changed(self, files: List[str]):
+        self.logger.info(f"Token files changed. Data will be updated via bot_details_updated signal.")
+        all_current_tokens = set(self.bot_token_window.token_to_file_map.keys())
+        existing_data_tokens = set(self.all_bots_data.keys())
+        tokens_to_remove = existing_data_tokens - all_current_tokens
+        if tokens_to_remove:
+            self.logger.info(f"Removing {len(tokens_to_remove)} stale bot data entries.")
+            for token in tokens_to_remove:
+                if token in self.all_bots_data:
+                    del self.all_bots_data[token]
+        QTimer.singleShot(0, lambda: self.populate_table_with_selected_tokens()) 
+        self.update_stats_for_selected_tokens()
+    def handle_cell_click(self, row, col, *args, **kwargs):
+        super().handle_cell_click(row, col)
+    def handle_selection_changed(self, *args, **kwargs):
+        super().handle_selection_changed()
+    def apply_filters(self, *args, **kwargs):
+        conditions = []
+        if self.filters['active'] != "Все":
+            def active_cond(row):
+                name_item = self.table.item(row, 2)
+                if name_item:
+                    return "Ошибка" not in name_item.text() if self.filters['active'] == "Да" else "Ошибка" in name_item.text()
+                return False
+            conditions.append(active_cond)
+        self.filter_rows_by_conditions(conditions)
+    def update_table_dimensions(self, *args, **kwargs):
+        super().update_table_dimensions()
     def update_edit_button_state(self, *args, **kwargs):
+        super().update_edit_button_state()
         has_selected = False
         for row in range(self.table.rowCount()):
             if not self.table.isRowHidden(row):
@@ -812,217 +422,190 @@ class SessionManagerWindow(BaseTableManager):
                 if checkbox and checkbox.isChecked():
                     has_selected = True
                     break
-        if hasattr(self, 'move_sessions_btn'):
-            self.move_sessions_btn.setEnabled(has_selected)
-    def filter_table(self, text, *args, **kwargs):
-        self.apply_filters()
-    def toggle_all_sessions(self, state, *args, **kwargs):
-        self.select_all.blockSignals(True)
-        for row in range(self.table.rowCount()):
-            checkbox_widget = self.table.cellWidget(row, 0)
-            if checkbox_widget:
-                checkbox = checkbox_widget.findChild(QCheckBox)
-                if checkbox:
-                    checkbox.setChecked(state == Qt.CheckState.Checked)
-        self.select_all.blockSignals(False)
-    def create_new_folder(self, *args, **kwargs):
-        folder_name, ok = QInputDialog.getText(
-            self, "Создать папку", "Введите название папки:"
-        )
-        if ok and folder_name:
-            try:
-                new_folder = os.path.join(self.session_folder, folder_name)
-                os.makedirs(new_folder, exist_ok=True)
-                QMessageBox.information(
-                    self, "Успех", f"Папка {folder_name} успешно создана"
-                )
-                self.session_window.update_session_folder(self.session_folder)
-            except Exception as e:
-                QMessageBox.warning(
-                    self, "Ошибка", f"Не удалось создать папку: {str(e)}"
-                )
-    def get_folder_mtime(self, *args, **kwargs):
-        pass
-    def check_for_updates(self, *args, **kwargs):
-        pass
-    def move_selected_sessions(self, *args, **kwargs):
-        selected_sessions = []
-        for row in range(self.table.rowCount()):
-            if not self.table.isRowHidden(row):
-                checkbox_widget = self.table.cellWidget(row, 0)
-                if checkbox_widget:
-                    checkbox = checkbox_widget.findChild(QCheckBox)
-                    if checkbox and checkbox.isChecked():
-                        phone_item = self.table.item(row, 2)
-                        if phone_item:
-                            selected_sessions.append(phone_item.text())
-        if not selected_sessions:
-            QMessageBox.warning(self, "Предупреждение", "Выберите сессии для перемещения")
-            return
-        target_folder = QFileDialog.getExistingDirectory(self, "Выберите папку назначения")
-        if not target_folder:
-            return
-        if not os.access(target_folder, os.W_OK):
-            QMessageBox.critical(self, "Ошибка", "Нет прав на запись в выбранную папку")
-            return
-        try:
-            moved_count = 0
-            files_to_move = []
-            for phone in selected_sessions:
-                session_file, json_file = self.find_session_and_json_files(phone)
-                if session_file:
-                    session_name = os.path.basename(session_file)
-                    target_session_path = os.path.join(target_folder, session_name)
-                    files_to_move.append((session_file, target_session_path))
-                if json_file:
-                    json_name = os.path.basename(json_file)
-                    target_json_path = os.path.join(target_folder, json_name)
-                    files_to_move.append((json_file, target_json_path))
-            for source_path, target_path in files_to_move:
-                if os.path.exists(source_path):
-                    if os.path.exists(target_path):
-                        os.remove(target_path)
-                    shutil.move(source_path, target_path)
-                    moved_count += 0.5
-                else:
-                    self.logger.warning(f"Файл не найден: {source_path}")
-            moved_count = int(moved_count)
-            if moved_count > 0:
-                QMessageBox.information(
-                    self, "Успех", f"Успешно перемещено {moved_count} сессий"
-                )
-                self.session_window.update_sessions_list()
-                self.load_sessions()
-            else:
-                QMessageBox.warning(
-                    self, "Внимание", "Ни один файл не был перемещён"
-                )
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Ошибка", f"Не удалось переместить сессии:\n{str(e)}"
-            )
-    def find_session_and_json_files(self, phone):
-        session_file = None
-        json_file = None
-        session_folder = self.session_window.session_folder
-        direct_session_path = os.path.join(session_folder, f"{phone}.session")
-        direct_json_path = os.path.join(session_folder, f"{phone}.json")        
-        if os.path.exists(direct_session_path):
-            session_file = direct_session_path 
-        if os.path.exists(direct_json_path):
-            json_file = direct_json_path
-        if not session_file or not json_file:
-            clean_phone = ''.join(c for c in phone if c.isdigit())
-            for root, _, files in os.walk(session_folder):
-                for filename in files:
-                    if filename.endswith('.json') and not json_file:
-                        current_json_path = os.path.join(root, filename)
-                        try:
-                            with open(current_json_path, 'r', encoding='utf-8') as f:
-                                data = json.load(f)
-                                json_phone = data.get('phone', '')
-                                json_phone_clean = ''.join(c for c in json_phone if c.isdigit())
-                                if json_phone_clean and json_phone_clean.endswith(clean_phone):
-                                    json_file = current_json_path
-                                    session_file_name = data.get('session_file', os.path.splitext(filename)[0])
-                                    potential_session_path = os.path.join(root, f"{session_file_name}.session")
-                                    if os.path.exists(potential_session_path):
-                                        session_file = potential_session_path
-                                        break
-                        except Exception:
-                            pass
-        return session_file, json_file
-    def update_stats(self, *args):
-        sessions = []
-        for session in self.session_window.get_selected_sessions():
-            phone = os.path.splitext(os.path.basename(session))[0]
-            session_file, json_file = self.find_session_and_json_files(phone)
-            json_path = json_file if json_file else os.path.join(self.session_folder, session).replace('.session', '.json')
-            is_spamblocked = False
-            is_premium = False
-            try:
-                with open(json_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    is_spamblocked = data.get('spamblock', False)
-                    is_premium = data.get('is_premium', False)
-            except:
-                pass
-            sessions.append({'is_spamblocked': is_spamblocked, 'is_premium': is_premium})
-        stats = self.calculate_stats(sessions)
-        self.sessions_block.set_number(stats['total'])
-        self.spam_block.set_number(stats['spam'])
-        self.non_spamblock_block.set_number(stats['non_spam'])
-        self.premium_block.set_number(stats['premium'])
-        self.stats_updated.emit(stats)
-    def open_sim_manager(self, row=None, *args, **kwargs):
-        selected_sessions = []
+    def open_bot_manager(self, row=None, token_str=None, *args, **kwargs):
+        selected_tokens = []
         if row is not None:
+            has_checked = False
             for r in range(self.table.rowCount()):
                 if not self.table.isRowHidden(r):
-                    checkbox_widget = self.table.cellWidget(r, 0)
-                    if checkbox_widget:
-                        checkbox = checkbox_widget.findChild(QCheckBox)
+                    checkbox = self.get_checkbox_for_row(r)
+                    if checkbox and checkbox.isChecked():
+                        has_checked = True
+                        break            
+            if not has_checked:
+                token = self.table.item(row, 4).text()
+                selected_tokens.append(token)
+            else:
+                for r in range(self.table.rowCount()):
+                    if not self.table.isRowHidden(r):
+                        checkbox = self.get_checkbox_for_row(r)
                         if checkbox and checkbox.isChecked():
-                            phone_item = self.table.item(r, 2)
-                            if phone_item:
-                                phone = phone_item.text()
-                                session_path = self.find_session_file_by_phone(phone)
-                                if session_path:
-                                    selected_sessions.append(session_path)
-            if not selected_sessions:
-                phone_item = self.table.item(row, 2)
-                if phone_item:
-                    phone = phone_item.text()
-                    session_path = self.find_session_file_by_phone(phone)
-                    if session_path:
-                        selected_sessions.append(session_path)
+                            token = self.table.item(r, 4).text()
+                            selected_tokens.append(token)
         else:
-            for row in range(self.table.rowCount()):
-                if not self.table.isRowHidden(row):
-                    checkbox_widget = self.table.cellWidget(row, 0)
-                    if checkbox_widget:
-                        checkbox = checkbox_widget.findChild(QCheckBox)
-                        if checkbox and checkbox.isChecked():
-                            phone_item = self.table.item(row, 2)
-                            if phone_item:
-                                phone = phone_item.text()
-                                session_path = self.find_session_file_by_phone(phone)
-                                if session_path:
-                                    selected_sessions.append(session_path)
-        if not selected_sessions:
-            QMessageBox.warning(self, "Предупреждение", "Выберите сессии для редактирования")
+            for r in range(self.table.rowCount()):
+                if not self.table.isRowHidden(r):
+                    checkbox = self.get_checkbox_for_row(r)
+                    if checkbox and checkbox.isChecked():
+                        token = self.table.item(r, 4).text()
+                        selected_tokens.append(token)
+        if not selected_tokens:
+            QMessageBox.warning(self, "Предупреждение", "Выберите ботов для редактирования")
             return
-        sim_manager = SimManagerWindow(
-            session_folder=self.session_window.session_folder,
-            selected_sessions=selected_sessions,
-            parent=self
-        )
-        sim_manager.exec()
-    def find_session_file_by_phone(self, phone, *args):
-        session_file, _ = self.find_session_and_json_files(phone)
-        return session_file
-    def on_config_changed(self, config, *args, **kwargs):
-        if config is None:
-            return
-        if 'SESSION_FOLDER' in config:
-            self.session_folder = config['SESSION_FOLDER']
-            self.session_window.update_session_folder(self.session_folder)
-            self.session_window.update_sessions_list() 
-            self.load_sessions()
-        use_proxy = bool(config.get('PROXY_TYPE'))
-        if hasattr(self, 'use_proxy_checkbox'):
-            self.use_proxy_checkbox.setChecked(use_proxy)
-        self.proxy = load_proxy(config) if config else None
-    def handle_cell_click(self, row, col, *args):
-        super().handle_cell_click(row, col)
-    def handle_selection_changed(self, *args):
-        super().handle_selection_changed()
+        try:
+            dialog = BotManagerDialog(selected_sessions=selected_tokens, parent=self)
+            dialog.bot_updated.connect(self.update_bot_data)
+            dialog.exec()
+            QTimer.singleShot(1000, self.bot_token_window.refresh_tokens)
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось открыть окно редактирования:\n{str(e)}") 
+    def delete_token_from_file(self, token: str, *args, **kwargs) -> bool:
+        try:
+            file_path = self.bot_token_window.token_to_file_map.get(token)
+            if not file_path:
+                self.logger.error(f"Не найден файл для токена {token}")
+                return False
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            new_lines = [line for line in lines if line.strip() != token]
+            if len(lines) == len(new_lines):
+                self.logger.warning(f"Токен {token} не найден в файле {file_path}")
+                return False
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(new_lines)
+            self.logger.info(f"Токен {token} успешно удален из файла {file_path}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Ошибка при удалении токена {token}: {e}")
+            return False
+    def get_selected_bots(self, *args, **kwargs):
+        selected_bots = []
+        for row in range(self.table.rowCount()):
+            checkbox = self.get_checkbox_for_row(row)
+            if checkbox and checkbox.isChecked():
+                token = self.table.item(row, 4).text()
+                username = self.table.item(row, 3).text()
+                selected_bots.append((token, username, row))
+        return selected_bots
+    def on_delete_token(self, clicked_row: int, token_str: str, *args, **kwargs):
+        try:
+            selected_bots = self.get_selected_bots()            
+            if not selected_bots:
+                token = self.table.item(clicked_row, 4).text()
+                username = self.table.item(clicked_row, 3).text()
+                selected_bots = [(token, username, clicked_row)]            
+            if not selected_bots:
+                QMessageBox.warning(self, "Предупреждение", "Не выбрано ни одного бота для удаления")
+                return                
+            bots_text = "\n".join([f"@{username}" for _, username, _ in selected_bots])
+            count_text = f"{'бота' if len(selected_bots) == 1 else 'ботов'}"            
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setWindowTitle("Подтверждение удаления")
+            msg.setText(f"Вы действительно хотите удалить следующих {count_text}?\n\n{bots_text}")
+            msg.setInformativeText("Это действие нельзя будет отменить.")
+            msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            msg.setDefaultButton(QMessageBox.StandardButton.No)            
+            if msg.exec() == QMessageBox.StandardButton.Yes:
+                success_count = 0
+                error_count = 0                
+                for token, _, _ in selected_bots:
+                    if self.delete_token_from_file(token):
+                        success_count += 1
+                    else:
+                        error_count += 1                
+                self.bot_token_window.refresh_tokens()
+                if success_count > 0 and error_count == 0:
+                    QMessageBox.information(self, "Успех", 
+                        f"Успешно удалено {success_count} {count_text}")
+                elif success_count > 0 and error_count > 0:
+                    QMessageBox.warning(self, "Частичный успех", 
+                        f"Удалено {success_count} {count_text}, но {error_count} не удалось удалить")
+                else:
+                    QMessageBox.critical(self, "Ошибка", 
+                        "Не удалось удалить выбранных ботов")        
+        except Exception as e:
+            self.logger.error(f"Ошибка при удалении токенов: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при удалении:\n{str(e)}") 
     def closeEvent(self, event, *args, **kwargs):
-        self.logger.info("Закрытие окна SessionManagerWindow...")
+        self.logger.info("Закрытие окна BotManagerWindow...")
         self._is_running = False
-        if hasattr(self, 'resize_timer'):
-            self.resize_timer.stop()        
+        if hasattr(self, '_update_timer'):
+            self._update_timer.stop()
+        if hasattr(self, '_ui_update_batch_timer'):
+            self._ui_update_batch_timer.stop()
+        if hasattr(self, 'load_thread') and self.load_thread:
+            self.load_thread.quit()
+            self.load_thread.wait()        
         super().closeEvent(event)
-        self.logger.info("Окно SessionManagerWindow закрыто.")
-    def create_table_item(self, text, is_error=False, is_selectable=True):
+        self.logger.info("Окно BotManagerWindow закрыто.") 
+    def show_context_menu(self, position, *args, **kwargs):
+        menu = QMenu()
+        copy_action = menu.addAction("Копировать")
+        copy_action.triggered.connect(self.copy_selected_cells)
+        menu.exec(self.table.viewport().mapToGlobal(position))
+    def copy_selected_cells(self, *args, **kwargs):
+        selected_ranges = self.table.selectedRanges()
+        if not selected_ranges:
+            selected_items = self.table.selectedItems()
+            if selected_items:
+                QApplication.clipboard().setText(selected_items[0].text())
+                return
+        texts = []
+        for range_ in selected_ranges:
+            for row in range(range_.topRow(), range_.bottomRow() + 1):
+                row_texts = []
+                for col in range(range_.leftColumn(), range_.rightColumn() + 1):
+                    item = self.table.item(row, col)
+                    if item:
+                        row_texts.append(item.text())
+                if row_texts:
+                    texts.append('\t'.join(row_texts))        
+        if texts:
+            QApplication.clipboard().setText('\n'.join(texts))
+    def create_table_item(self, text, is_error=False, is_selectable=True, *args, **kwargs):
         return super().create_table_item(text, is_error, is_selectable)
+    def _on_bot_details_updated(self, token: str, username: str, bot_name: str, *args, **kwargs):
+        self.logger.info(f"Received bot details for ...{token[-6:]}: @{username} (Name: {bot_name})")
+        has_error = False
+        effective_username = username
+        effective_bot_name = bot_name
+        if username is None or username.strip() == "" or "Ошибка" in str(username) or username == 'Загрузка...' or username == 'Недоступен':
+            has_error = True
+            effective_username = "Ошибка" if username is None or username.strip() == "" else username        
+        if bot_name is None or bot_name.strip() == "" or "Ошибка" in str(bot_name) or bot_name == 'Загрузка...':
+            effective_bot_name = effective_username if not has_error else "Ошибка"
+            if not (bot_name is None or bot_name.strip() == ""):
+                 has_error = True
+        self.all_bots_data[token] = {
+            'token': token,
+            'name': effective_bot_name,
+            'username': effective_username,
+            'has_error': has_error
+        }
+        self.logger.debug(f"all_bots_data updated for ...{token[-6:]}. New data: {self.all_bots_data[token]}")
+        self._pending_token_updates_for_ui.add(token)
+        if not self._ui_update_batch_timer.isActive():
+            self._ui_update_batch_timer.start()
+    def update_icons(self, *args, **kwargs):
+        is_dark = getattr(self.main_window, 'is_dark_theme', False) if self.main_window else False
+        self.icon_color = get_icon_color(is_dark)
+    def update_bot_data(self, token: str, param: str, value: str, *args, **kwargs):
+        if token in self.all_bots_data:
+            if param == 'name':
+                self.all_bots_data[token]['name'] = value
+            elif param == 'description':
+                self.all_bots_data[token]['description'] = value
+            elif param == 'short_description':
+                self.all_bots_data[token]['short_description'] = value
+            if token in self.current_display_tokens:
+                try:
+                    row = self.current_display_tokens.index(token)
+                    if row < self.table.rowCount():
+                        if param == 'name':
+                            name_item = self.create_table_item(value)
+                            self.table.setItem(row, 2, name_item)
+                        self.table.viewport().update()
+                        self.update_stats_for_selected_tokens()
+                except Exception as e:
+                    self.logger.error(f"Ошибка при обновлении строки для токена {token}: {e}")

@@ -41,13 +41,6 @@ class BotWorker(BaseThread):
         self.bot_manager = AiogramBotConnection(token, proxy)
         self.bot_manager.log_signal.connect(self.log_signal.emit)
         self.bot_manager.error_signal.connect(lambda t, e: self.error_signal.emit(f"{t}: {e.message}"))
-        self._file_locks = {}
-        self._file_lock_mutex = asyncio.Lock()
-    async def _get_file_lock(self, path):
-        async with self._file_lock_mutex:
-            if path not in self._file_locks:
-                self._file_locks[path] = asyncio.Lock()
-            return self._file_locks[path]
     def safe_emit(self, signal, *args):
         with QMutexLocker(self.mutex):
             signal.emit(*args)
@@ -187,8 +180,6 @@ class BotWorker(BaseThread):
                     await self.bot_manager.disconnect()
                 except Exception:
                     pass
-            async with self._file_lock_mutex:
-                self._file_locks.clear()
             if self.bot_username != "unknown":
                 self.safe_emit(self.log_signal, f"Бот {self.bot_username} остановлен")
             else:
@@ -200,21 +191,26 @@ class BotWorker(BaseThread):
                 return
             project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
             users_folder = os.path.join(project_root, "users_bot")
-            await aio_os.makedirs(users_folder, exist_ok=True)
+            os.makedirs(users_folder, exist_ok=True)
             users_file_path = os.path.join(users_folder, f"{self.bot_username}.txt")
-            lock = await self._get_file_lock(users_file_path)
-            async with lock:
-                file_exists = await aio_os.path.exists(users_file_path)
-                if file_exists:
-                    async with aiofiles.open(users_file_path, 'r', encoding='utf-8') as f:
-                        lines = await f.readlines()
-                    existing_ids = set(line.strip() for line in lines[1:])
-                    if str(user_id) in existing_ids:
-                        return
-                async with aiofiles.open(users_file_path, 'a', encoding='utf-8') as f:
-                    if not file_exists:
-                        await f.write(f"{self.token}\n")
-                    await f.write(f"{user_id}\n")
+            existing_ids = set()
+            file_exists = os.path.exists(users_file_path)
+            if file_exists:
+                try:
+                    with open(users_file_path, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                    existing_ids = set(line.strip() for line in lines[1:] if line.strip())
+                except Exception as e:
+                    self.safe_emit(self.error_signal, f"Ошибка чтения файла {users_file_path}: {e}")
+                    return
+            if str(user_id) not in existing_ids:
+                try:
+                    with open(users_file_path, 'a', encoding='utf-8') as f:
+                        if not file_exists:
+                            f.write(f"{self.token}\n")
+                        f.write(f"{user_id}\n")
+                except Exception as e:
+                    self.safe_emit(self.error_signal, f"Ошибка записи в файл {users_file_path}: {e}")
         except Exception as e:
             self.safe_emit(self.error_signal, f"Ошибка при сохранении user_id для бота {self.bot_username}: {e}")
     def generate_random_text(self, *args):
@@ -324,15 +320,27 @@ class AutoReplyAiogramWorker(QObject):
         self.running_flag = False
         try:
             if hasattr(self, 'check_timer') and self.check_timer.isActive():
-                QTimer.singleShot(0, self.check_timer.stop)
-                
+                self.check_timer.stop()
+                self.check_timer.deleteLater()
             self.thread_manager.stop_all_threads()
-            
+            for thread in list(self.thread_manager.threads):
+                if thread.isRunning():
+                    thread.terminate()
+                    thread.wait(5000)
+                if hasattr(thread, 'bot_manager') and thread.bot_manager:
+                    try:
+                        thread.bot_manager = None
+                    except Exception:
+                        pass
+                thread.deleteLater()
+            self.thread_manager.threads.clear()
+            self.thread_manager.active_threads.clear()
+            self.thread_manager.completed_threads.clear()
             self.start_count.clear()
             self.reply_count.clear()
             self.premium_count.clear()
             self.bot_usernames.clear()
-            
+            BotWorker._active_bots.clear()
             import gc
             gc.collect()
             self.safe_emit(self.log_signal, "Все боты успешно остановлены")
@@ -566,9 +574,26 @@ class BotWindow(QWidget):
             self.start_button.setEnabled(True)
             self.stop_button.setEnabled(False)
     def _finish_stop_process(self, *args):
-        self.auto_reply_worker = None
-        import gc
-        gc.collect()
+        try:
+            if self.auto_reply_worker:
+                if hasattr(self.auto_reply_worker, 'thread_manager'):
+                    for thread in list(self.auto_reply_worker.thread_manager.threads):
+                        if thread.isRunning():
+                            thread.terminate()
+                            thread.wait(3000)
+                        thread.deleteLater()
+                    self.auto_reply_worker.thread_manager.threads.clear()
+                    self.auto_reply_worker.thread_manager = None
+                self.auto_reply_worker.deleteLater()
+                self.auto_reply_worker = None
+        except Exception as e:
+            self.log_message(f"Ошибка при финальной очистке: {e}")
+        try:
+            import gc
+            gc.collect()
+            gc.collect()
+        except Exception:
+            pass
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self.progress_widget.update_progress(100, "Процесс остановлен")

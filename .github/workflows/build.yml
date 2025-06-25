@@ -103,6 +103,8 @@ jobs:
             --include-module=ui.adv `
             --include-module=ui.filya `
             --include-module=ui.decorators `
+            --include-module=ui.svg_icons `
+            --include-module=ui.svg_utils `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version="2.3.6" `

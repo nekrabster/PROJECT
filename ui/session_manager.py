@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidgetItem, QHeaderView, QCheckBox,
     QFileDialog, QMessageBox, QToolButton, QFrame, QInputDialog,
-    QDialog, QListWidget, QListWidgetItem, QScrollArea, QSplitter
+    QDialog, QListWidget, QListWidgetItem, QScrollArea, QSplitter,
+    QMenu, QApplication
 )
 from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QColor, QPixmap
@@ -444,7 +445,6 @@ class SessionManagerWindow(BaseTableManager):
         self.move_sessions_btn.clicked.connect(self.move_selected_sessions)
         buttons_panel.addWidget(self.create_folder_btn)
         buttons_panel.addWidget(self.move_sessions_btn)
-        
         column_config = [
             {"label": "Select", "resize_mode": QHeaderView.ResizeMode.Fixed, "width": 48},
             {"label": "#", "resize_mode": QHeaderView.ResizeMode.Interactive},
@@ -455,14 +455,13 @@ class SessionManagerWindow(BaseTableManager):
             {"label": "Имя / Фамилия", "resize_mode": QHeaderView.ResizeMode.Interactive},
             {"label": "Премиум", "resize_mode": QHeaderView.ResizeMode.Interactive},
             {"label": "Изменить", "resize_mode": QHeaderView.ResizeMode.Fixed, "width": 80}
-        ]
-        
+        ] 
         self.setup_table_ui(column_config, left_panel_layout)
-        
         buttons_panel.addWidget(self.search_input)
         buttons_panel.addStretch()    
         left_panel_layout.insertLayout(1, buttons_panel)
-
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.show_context_menu)
         left_panel_wrapper_widget = QWidget()
         left_panel_wrapper_widget.setLayout(left_panel_layout)
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -504,7 +503,7 @@ class SessionManagerWindow(BaseTableManager):
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 self.filters['geo'] = dialog.get_selected_items()
                 self.apply_filters()
-        elif column == 4: # Фильтр по спамблоку
+        elif column == 4:
             if self.filters['spamblock'] == "Все":
                 self.filters['spamblock'] = "Да"
             elif self.filters['spamblock'] == "Да":
@@ -639,19 +638,7 @@ class SessionManagerWindow(BaseTableManager):
                     value = "Да" if self.filters['premium'] == "Да" else "Нет"
                     return premium_item.text() == value
                 return False
-            conditions.append(premium_cond)
-        
-        search_text = self.search_input.text().lower()
-        if search_text:
-            def search_cond(row):
-                for col in range(self.table.columnCount()):
-                    if col == 8: continue
-                    item = self.table.item(row, col)
-                    if item and search_text in item.text().lower():
-                        return True
-                return False
-            conditions.append(search_cond)
-            
+            conditions.append(premium_cond) 
         self.filter_rows_by_conditions(conditions)
     def update_row_numbers(self, *args):
         super().update_row_numbers()
@@ -788,6 +775,10 @@ class SessionManagerWindow(BaseTableManager):
                 premium_item.setData(Qt.ItemDataRole.UserRole, session['is_premium'])
                 premium_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(i, 7, premium_item)
+                actions_widget = QWidget()
+                actions_layout = QHBoxLayout(actions_widget)
+                actions_layout.setContentsMargins(0, 0, 0, 0)
+                actions_layout.setSpacing(8)
                 edit_btn = QPushButton()
                 edit_icon = create_svg_icon(self.svg_icons['edit'], getattr(self, 'icon_color', '#87CEEB'))
                 edit_btn.setIcon(edit_icon)
@@ -795,7 +786,9 @@ class SessionManagerWindow(BaseTableManager):
                 edit_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #e0f7fa; border-radius: 4px; }")
                 edit_btn.setIconSize(edit_btn.sizeHint())
                 edit_btn.clicked.connect(lambda checked, row=i: self.open_sim_manager(row))
-                self.table.setCellWidget(i, 8, edit_btn)
+                actions_layout.addWidget(edit_btn)
+                actions_layout.addStretch()
+                self.table.setCellWidget(i, 8, actions_widget)
                 self.logger.debug(f"Добавлена строка {i + 1} для сессии {session['phone']}")
             except Exception as e:
                 self.logger.error(f"Ошибка добавления строки {i}: {str(e)}")
@@ -805,6 +798,7 @@ class SessionManagerWindow(BaseTableManager):
         self.table.viewport().update()
         self.update_table_dimensions()
     def update_edit_button_state(self, *args, **kwargs):
+        super().update_edit_button_state()
         has_selected = False
         for row in range(self.table.rowCount()):
             if not self.table.isRowHidden(row):
@@ -815,16 +809,8 @@ class SessionManagerWindow(BaseTableManager):
         if hasattr(self, 'move_sessions_btn'):
             self.move_sessions_btn.setEnabled(has_selected)
     def filter_table(self, text, *args, **kwargs):
+        super().filter_table(text)
         self.apply_filters()
-    def toggle_all_sessions(self, state, *args, **kwargs):
-        self.select_all.blockSignals(True)
-        for row in range(self.table.rowCount()):
-            checkbox_widget = self.table.cellWidget(row, 0)
-            if checkbox_widget:
-                checkbox = checkbox_widget.findChild(QCheckBox)
-                if checkbox:
-                    checkbox.setChecked(state == Qt.CheckState.Checked)
-        self.select_all.blockSignals(False)
     def create_new_folder(self, *args, **kwargs):
         folder_name, ok = QInputDialog.getText(
             self, "Создать папку", "Введите название папки:"
@@ -1024,5 +1010,29 @@ class SessionManagerWindow(BaseTableManager):
             self.resize_timer.stop()        
         super().closeEvent(event)
         self.logger.info("Окно SessionManagerWindow закрыто.")
+    def show_context_menu(self, position, *args, **kwargs):
+        menu = QMenu()
+        copy_action = menu.addAction("Копировать")
+        copy_action.triggered.connect(self.copy_selected_cells)
+        menu.exec(self.table.viewport().mapToGlobal(position))
+    def copy_selected_cells(self, *args, **kwargs):
+        selected_ranges = self.table.selectedRanges()
+        if not selected_ranges:
+            selected_items = self.table.selectedItems()
+            if selected_items:
+                QApplication.clipboard().setText(selected_items[0].text())
+                return
+        texts = []
+        for range_ in selected_ranges:
+            for row in range(range_.topRow(), range_.bottomRow() + 1):
+                row_texts = []
+                for col in range(range_.leftColumn(), range_.rightColumn() + 1):
+                    item = self.table.item(row, col)
+                    if item:
+                        row_texts.append(item.text())
+                if row_texts:
+                    texts.append('\t'.join(row_texts))        
+        if texts:
+            QApplication.clipboard().setText('\n'.join(texts))
     def create_table_item(self, text, is_error=False, is_selectable=True):
         return super().create_table_item(text, is_error, is_selectable)

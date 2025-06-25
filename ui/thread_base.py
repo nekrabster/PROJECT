@@ -70,18 +70,37 @@ class BaseThread(QThread):
             self._cleanup()
     def _cleanup(self, *args, **kwargs):
         try:
-            if hasattr(self, 'client') and self.client and self.loop and self.loop.is_running():
+            if hasattr(self, 'client') and self.client and self.loop and not self.loop.is_closed():
                 try:
+                    if self.loop.is_running():
+                        pending = asyncio.all_tasks(self.loop)
+                        for task in pending:
+                            if not task.done():
+                                task.cancel()
+                        self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
                     self.loop.run_until_complete(self.client.disconnect())
-                except:
+                except Exception:
                     pass
-        except:
+        except Exception:
             pass
         finally:
-            if self.loop:
-                self.loop.close()
+            if self.loop and not self.loop.is_closed():
+                try:
+                    pending = asyncio.all_tasks(self.loop)
+                    for task in pending:
+                        if not task.done():
+                            task.cancel()
+                    if pending:
+                        self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    self.loop.run_until_complete(self.loop.shutdown_asyncgens())
+                except Exception:
+                    pass
+                finally:
+                    self.loop.close()
             self.loop = None
             self.task = None
+            if self.timer:
+                self.timer = None
             self.done_signal.emit()
     async def process(self, *args, **kwargs):
         raise NotImplementedError("process() должен быть реализован в наследнике")

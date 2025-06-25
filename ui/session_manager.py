@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QDialog, QListWidget, QListWidgetItem, QScrollArea, QSplitter
 )
 from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal
-from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap
+from PyQt6.QtGui import QFont, QColor, QPixmap
 from ui.session_win import SessionWindow
 from ui.sim_manager import SimManagerWindow
 from ui.loader import load_config, load_proxy
@@ -17,6 +17,8 @@ def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.dirname(__file__), os.pardir, relative_path)
+from ui.svg_utils import create_svg_icon
+from ui.svg_icons import get_svg_icons, get_icon_color
 class StatBlock(QFrame):
     ICONS = {
         'Сессий': '',
@@ -376,6 +378,8 @@ class SessionManagerWindow(BaseTableManager):
         self.resize_timer = QTimer()
         self.resize_timer.setSingleShot(True)
         self.resize_timer.timeout.connect(self.update_table_dimensions)
+        self.svg_icons = get_svg_icons()
+        self.update_icons()
         self.setup_ui()
         self.session_window.sessions_updated.connect(self.on_sessions_updated)
         self.session_window.folder_updated.connect(self.on_folder_changed)
@@ -385,6 +389,9 @@ class SessionManagerWindow(BaseTableManager):
         self.resize_timer.start(100)
     def update_table_dimensions(self, *args, **kwargs):
         super().update_table_dimensions()
+    def update_icons(self, *args, **kwargs):
+        is_dark = getattr(self.main_window, 'is_dark_theme', False) if self.main_window else False
+        self.icon_color = get_icon_color(is_dark)
     def setup_ui(self, *args):
         self.session_window = SessionWindow(self.session_folder, parent=self)
         self.session_window.setStyleSheet("""
@@ -424,12 +431,14 @@ class SessionManagerWindow(BaseTableManager):
         buttons_panel.setSpacing(5)
         buttons_panel.setContentsMargins(5, 5, 5, 5)
         self.create_folder_btn = QToolButton()
-        self.create_folder_btn.setIcon(QIcon(resource_path("icons/papka.png")))
+        folder_icon = create_svg_icon(self.svg_icons['folder'], getattr(self, 'icon_color', '#87CEEB'))
+        self.create_folder_btn.setIcon(folder_icon)
         self.create_folder_btn.setIconSize(QSize(24, 24))
         self.create_folder_btn.setToolTip("Создать новую папку")
         self.create_folder_btn.clicked.connect(self.create_new_folder)
         self.move_sessions_btn = QToolButton()
-        self.move_sessions_btn.setIcon(QIcon(resource_path("icons/papka1.png")))
+        move_icon = create_svg_icon(self.svg_icons['folder_move'], getattr(self, 'icon_color', '#87CEEB'))
+        self.move_sessions_btn.setIcon(move_icon)
         self.move_sessions_btn.setIconSize(QSize(24, 24))
         self.move_sessions_btn.setToolTip("Переместить выбранные сессии")
         self.move_sessions_btn.clicked.connect(self.move_selected_sessions)
@@ -780,7 +789,8 @@ class SessionManagerWindow(BaseTableManager):
                 premium_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(i, 7, premium_item)
                 edit_btn = QPushButton()
-                edit_btn.setIcon(QIcon(resource_path("icons/icon113.png")))
+                edit_icon = create_svg_icon(self.svg_icons['edit'], getattr(self, 'icon_color', '#87CEEB'))
+                edit_btn.setIcon(edit_icon)
                 edit_btn.setToolTip("Изменить")
                 edit_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #e0f7fa; border-radius: 4px; }")
                 edit_btn.setIconSize(edit_btn.sizeHint())

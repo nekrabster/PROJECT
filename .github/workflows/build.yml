@@ -13,10 +13,10 @@ jobs:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.12
+      - name: 🐍 Set up Python 3.13.2
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13.2'
 
       - name: 🆙 Upgrade pip
         run: python -m pip install --upgrade pip
@@ -30,36 +30,50 @@ jobs:
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: ⚙️ Install LLVM (Clang)
+        uses: egor-tensin/setup-clang@v1
+        with:
+          version: 17
+
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-      - name: 🛠 Build .exe with Nuitka (Optimized)
+      - name: 🛠 Build .exe with Nuitka (Performance Optimized)
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
         run: |
+          $env:CC = "clang-cl"
+          $env:CXX = "clang-cl"
           nuitka `
             main.py `
-            --mode=onefile `
+            --standalone `
+            --onefile `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
             --assume-yes-for-downloads `
-            --windows-console-mode=disable `
+            --disable-console `
+            --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
-            --mingw64 `
+            --clang `
             --lto=yes `
             --jobs=4 `
-            --python-flag=no_site `
-            --python-flag=no_docstrings `
+            --no-pyi-file `
             --python-flag=no_asserts `
+            --python-flag=no_docstrings `
+            --python-flag=no_site `
+            --cf-protection=none `
+            --disable-dll-dependency-cache `
+            --disable-ccache `
+            --msvc=latest `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `

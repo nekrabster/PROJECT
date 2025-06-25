@@ -20,7 +20,7 @@ class MasterProtection:
         self._stealth_mode = True
         self._user_safe_mode = True
         self._performance_mode = True
-    def _is_user_system(self):
+    def _is_user_system(self, *args,**kwargs):
         try:
             import psutil
             process_count = len(list(psutil.process_iter()))
@@ -36,7 +36,7 @@ class MasterProtection:
             return False
         except Exception:
             return True
-    def _create_minimal_decoys(self):
+    def _create_minimal_decoys(self, *args,**kwargs):
         if not self._user_safe_mode:
             return
         decoy_names = ['license_validator', 'server_connector']
@@ -87,7 +87,7 @@ instance = {name.title().replace("_", "")}()
         except Exception:
             pass
         return False
-    def _setup_minimal_honeypots(self):
+    def _setup_minimal_honeypots(self, *args,**kwargs):
         if not self._user_safe_mode:
             return
         fake_globals = {
@@ -98,7 +98,7 @@ instance = {name.title().replace("_", "")}()
         for key, value in fake_globals.items():
             globals()[key] = value
     @heavy_obfuscation
-    def _trigger_emergency_shutdown(self, reason: str):
+    def _trigger_emergency_shutdown(self, reason: str, *args,**kwargs):
         try:
             if self._stealth_mode:
                 normal_errors = [

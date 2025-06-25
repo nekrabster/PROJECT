@@ -2,11 +2,11 @@ import os, asyncio, random, string, time
 import aiofiles
 import aiofiles.os as aio_os
 from aiogram.exceptions import TelegramForbiddenError
-from PyQt6.QtCore import QThread, pyqtSignal, QObject, QMutex, QMutexLocker, QTimer, QThreadPool
+from PyQt6.QtCore import pyqtSignal, QObject, QMutex, QMutexLocker, QTimer
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QCheckBox, QTextEdit,
     QGroupBox, QFileDialog, QSizePolicy,
-    QApplication, QLineEdit, QLabel, QSplitter, QHBoxLayout, QListWidget
+    QLineEdit, QLabel, QSplitter, QHBoxLayout, QListWidget
 )
 from ui.okak import ErrorReportDialog
 from ui.loader import load_config

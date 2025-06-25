@@ -30,50 +30,36 @@ jobs:
       - name: 🧰 Setup MSVC for Clang
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: ⚙️ Install LLVM (Clang)
-        uses: egor-tensin/setup-clang@v1
-        with:
-          version: 17
-
       - name: 🔍 Find certifi cacert.pem path
         id: certifi_path
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-      - name: 🛠 Build .exe with Nuitka (Performance Optimized)
+      - name: 🛠 Build .exe with Nuitka (Optimized)
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
         run: |
-          $env:CC = "clang-cl"
-          $env:CXX = "clang-cl"
           nuitka `
             main.py `
-            --standalone `
-            --onefile `
+            --mode=onefile `
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
             --assume-yes-for-downloads `
-            --disable-console `
-            --follow-imports `
+            --windows-console-mode=disable `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
             --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
             --include-data-dir=icons=icons `
-            --clang `
+            --mingw64 `
             --lto=yes `
             --jobs=4 `
-            --no-pyi-file `
-            --python-flag=no_asserts `
-            --python-flag=no_docstrings `
             --python-flag=no_site `
-            --cf-protection=none `
-            --disable-dll-dependency-cache `
-            --disable-ccache `
-            --msvc=latest `
+            --python-flag=no_docstrings `
+            --python-flag=no_asserts `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `

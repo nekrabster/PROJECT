@@ -20,7 +20,7 @@ from functools import wraps
 class AntiDebugProtection:
     def __init__(self):
         self._protection_active = True
-        self._check_interval = random.uniform(0.5, 2.0)
+        self._check_interval = random.uniform(2.0, 5.0)
         self._dummy_functions = []
         self._create_dummy_functions()
     def _create_dummy_functions(self, *args,**kwargs):
@@ -73,7 +73,7 @@ class AntiDebugProtection:
                 result += i * 2
             end_time = time.perf_counter()
             execution_time = end_time - start_time
-            if execution_time > 0.01:
+            if execution_time > 0.1:
                 self._trigger_protection()
                 return True
         except Exception:
@@ -95,21 +95,21 @@ class AntiDebugProtection:
     def check_sandbox_environment(self, *args,**kwargs):
         try:
             process_count = len(list(psutil.process_iter()))
-            if process_count < 25:
+            if process_count < 15:
                 self._trigger_protection()
                 return True
             memory = psutil.virtual_memory()
-            if memory.total < 2 * 1024 * 1024 * 1024:
+            if memory.total < 1 * 1024 * 1024 * 1024:
                 self._trigger_protection()
                 return True
             boot_time = psutil.boot_time()
             current_time = time.time()
             uptime = current_time - boot_time
-            if uptime < 600:
+            if uptime < 60:
                 self._trigger_protection()
                 return True
             username = os.getenv('USERNAME', '').lower()
-            sandbox_users = ['sandbox', 'malware', 'virus', 'sample', 'test', 'user', 'admin']
+            sandbox_users = ['sandbox', 'malware', 'virus', 'sample', 'test']
             if username in sandbox_users:
                 self._trigger_protection()
                 return True
@@ -143,14 +143,14 @@ class AntiDebugProtection:
                 try:
                     checks = [self.check_debugger_present, self.check_timing_attack, self.check_virtual_machine, self.check_analysis_tools, self.check_sandbox_environment]
                     random.shuffle(checks)
-                    for check in checks[:3]:
+                    for check in checks[:2]:
                         if check():
                             return
-                        time.sleep(random.uniform(0.1, 0.5))
+                        time.sleep(random.uniform(0.2, 1.0))
                     time.sleep(self._check_interval)
-                    self._check_interval = random.uniform(0.5, 2.0)
+                    self._check_interval = random.uniform(2.0, 5.0)
                 except Exception:
-                    time.sleep(1.0)
+                    time.sleep(2.0)
         thread = threading.Thread(target=protection_loop, daemon=True)
         thread.start()
     def disable_protection(self, *args,**kwargs):
@@ -159,7 +159,7 @@ _protection = AntiDebugProtection()
 def protected(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if random.random() < 0.1:
+        if random.random() < 0.02:
             if _protection.check_debugger_present():
                 return None
         return func(*args, **kwargs)

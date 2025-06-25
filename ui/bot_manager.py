@@ -401,6 +401,9 @@ class BotManagerWindow(BaseTableManager):
         super().handle_cell_click(row, col)
     def handle_selection_changed(self, *args, **kwargs):
         super().handle_selection_changed()
+    def filter_table(self, text, *args, **kwargs):
+        super().filter_table(text)
+        self.apply_filters()
     def apply_filters(self, *args, **kwargs):
         conditions = []
         if self.filters['active'] != "Все":
@@ -415,13 +418,6 @@ class BotManagerWindow(BaseTableManager):
         super().update_table_dimensions()
     def update_edit_button_state(self, *args, **kwargs):
         super().update_edit_button_state()
-        has_selected = False
-        for row in range(self.table.rowCount()):
-            if not self.table.isRowHidden(row):
-                checkbox = self.get_checkbox_for_row(row)
-                if checkbox and checkbox.isChecked():
-                    has_selected = True
-                    break
     def open_bot_manager(self, row=None, token_str=None, *args, **kwargs):
         selected_tokens = []
         if row is not None:

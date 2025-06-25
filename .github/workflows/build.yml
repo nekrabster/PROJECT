@@ -13,7 +13,7 @@ jobs:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.13
+      - name: 🐍 Set up Python 3.13.2
         uses: actions/setup-python@v5
         with:
           python-version: '3.13.2'
@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-      - name: 🛠 Build .exe with Nuitka
+      - name: 🛠 Build .exe with Nuitka (Performance Optimized)
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
@@ -50,6 +50,7 @@ jobs:
           $env:CXX = "clang-cl"
           nuitka `
             main.py `
+            --standalone `
             --onefile `
             --remove-output `
             --output-dir=dist `
@@ -66,6 +67,14 @@ jobs:
             --lto=yes `
             --jobs=4 `
             --no-pyi-file `
+            --python-flag=no_asserts `
+            --python-flag=no_docstrings `
+            --python-flag=no_site `
+            --cf-protection=none `
+            --disable-dll-dependency-cache `
+            --disable-ccache `
+            --msvc=latest `
+            --static-libpython=yes `
             --include-module=ui.rudich `
             --include-module=ui.complas `
             --include-module=ui.components `

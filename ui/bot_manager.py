@@ -9,16 +9,16 @@ from PyQt6.QtWidgets import (
     QApplication, QMenu
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QFont
 from ui.bots_win import BotTokenWindow
 from ui.bombardo import BotManagerDialog
 from ui.table_manager_base import BaseTableManager
-
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.dirname(__file__), os.pardir, relative_path)
-
+from ui.svg_utils import create_svg_icon
+from ui.svg_icons import get_svg_icons, get_icon_color
 class StatBlock(QFrame):
     ICONS = {
         'Всего': '',
@@ -102,14 +102,16 @@ class BotManagerWindow(BaseTableManager):
         self._ui_update_batch_timer.setInterval(100) 
         self._ui_update_batch_timer.timeout.connect(self._process_batched_ui_updates)
         self._batch_size = 50
-        self._current_batch = []
+        self._current_batch = [] 
+        self.svg_icons = get_svg_icons()
+        self.update_icons()  
         self.setup_ui()
         self.bot_token_window.tokens_updated.connect(self.on_tokens_updated)
         self.bot_token_window.files_updated.connect(self.on_folder_changed)
         self.bot_token_window.bot_details_updated.connect(self._on_bot_details_updated)
         self.resize_timer = QTimer()
         self.resize_timer.setSingleShot(True)
-        self.resize_timer.timeout.connect(self.update_table_dimensions)        
+        self.resize_timer.timeout.connect(self.update_table_dimensions)
         QTimer.singleShot(100, self.initial_load_sequence)
     def _delayed_table_update(self, *args, **kwargs):
         self.populate_table_with_selected_tokens()
@@ -339,14 +341,16 @@ class BotManagerWindow(BaseTableManager):
                 actions_layout.setContentsMargins(0, 0, 0, 0)
                 actions_layout.setSpacing(8)
                 edit_btn = QPushButton()
-                edit_btn.setIcon(QIcon(resource_path("icons/icon113.png")))
+                edit_icon = create_svg_icon(self.svg_icons['edit'], getattr(self, 'icon_color', '#87CEEB'))
+                edit_btn.setIcon(edit_icon)
                 edit_btn.setToolTip("Изменить")
                 edit_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #e0f7fa; border-radius: 4px; }")
                 edit_btn.setIconSize(edit_btn.sizeHint())
                 edit_btn.clicked.connect(lambda checked, r=i, t=token_str: self.open_bot_manager(r, t))
                 actions_layout.addWidget(edit_btn)
                 del_btn = QPushButton()
-                del_btn.setIcon(QIcon(resource_path("icons/icon112.png")))
+                del_icon = create_svg_icon(self.svg_icons['delete'], getattr(self, 'icon_color', '#87CEEB'))
+                del_btn.setIcon(del_icon)
                 del_btn.setToolTip("Удалить")
                 del_btn.setStyleSheet("QPushButton { border: none; background: transparent; padding: 2px 5px; } QPushButton:hover { background: #ffebee; border-radius: 4px; }")
                 del_btn.setIconSize(del_btn.sizeHint())
@@ -583,6 +587,9 @@ class BotManagerWindow(BaseTableManager):
         self._pending_token_updates_for_ui.add(token)
         if not self._ui_update_batch_timer.isActive():
             self._ui_update_batch_timer.start()
+    def update_icons(self, *args, **kwargs):
+        is_dark = getattr(self.main_window, 'is_dark_theme', False) if self.main_window else False
+        self.icon_color = get_icon_color(is_dark)
     def update_bot_data(self, token: str, param: str, value: str, *args, **kwargs):
         if token in self.all_bots_data:
             if param == 'name':

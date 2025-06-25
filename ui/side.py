@@ -1,13 +1,15 @@
 import os
 import sys
 from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve, QTimer, pyqtSignal, QProcess, QThread
-from PyQt6.QtGui import QIcon, QPixmap, QCursor
+from PyQt6.QtGui import QPixmap, QCursor
 from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QWidget, QSizePolicy, QGraphicsOpacityEffect, QMessageBox, QApplication
 )
 from ui.session_manager import StatBlock
 from ui.styles import StyleManager
+from ui.svg_utils import create_svg_icon
+from ui.svg_icons import get_svg_icons
 import requests
 from packaging.version import parse
 def resource_path(relative_path):
@@ -256,29 +258,31 @@ class SideBar:
         self.main_label.setStyleSheet("padding: 4px 8px; font-size: 17px; font-weight: bold; color: #FFFFFF; background: transparent;")
         layout.addWidget(self.main_label)
     def _add_sidebar_sections(self, layout, sidebar, *args, **kwargs):
+        svg_icons = get_svg_icons()
+        icon_color = "#87CEEB"  
         sections = [
-            ("Сессии", "icons/icon1.png", "icons/icon10.png", [
-                ("Создать сессию", "kachok", "icons/icon3.png"),
-                ("Менеджер аккаунтов", "session_manager", "icons/icon3.png"),
-                ("Бустер/Чекер", "components", "icons/icon8.png"),
-                ("Отправка жалоб", "complas", "icons/icon4.png"),
-                ("Накрут/Грев", "subscribe", "icons/icon5.png"),
-                ("Рассылка", "malining", "icons/icon6.png"),
-                ("Парсер аудитории", "subs", "icons/icon7.png"),
+            ("Сессии", create_svg_icon(svg_icons['user'], icon_color), create_svg_icon(svg_icons['arrow_down'], icon_color), [
+                ("Создать сессию", "kachok", create_svg_icon(svg_icons['add'], icon_color)),
+                ("Менеджер аккаунтов", "session_manager", create_svg_icon(svg_icons['group'], icon_color)),
+                ("Бустер/Чекер", "components", create_svg_icon(svg_icons['search'], icon_color)),
+                ("Отправка жалоб", "complas", create_svg_icon(svg_icons['edit'], icon_color)),
+                ("Накрут/Грев", "subscribe", create_svg_icon(svg_icons['chart'], icon_color)),
+                ("Рассылка", "malining", create_svg_icon(svg_icons['send'], icon_color)),
+                ("Парсер аудитории", "subs", create_svg_icon(svg_icons['eye'], icon_color)),
             ]),
-            ("Боты", "icons/icon2.png", "icons/icon10.png", [
-                ("Создать ботов", "newtoken", "icons/icon11.png"),
-                ("Менеджер ботов", "bot_manager", "icons/icon11.png"),
-                ("Проверка юзеров", "check", "icons/icon9.png"),
-                ("Автоответы ботов", "session", "icons/icon2.png"),
-                ("Рассылка ботов", "rass", "icons/icon12.png"),
+            ("Боты", create_svg_icon(svg_icons['robot'], icon_color), create_svg_icon(svg_icons['arrow_down'], icon_color), [
+                ("Создать ботов", "newtoken", create_svg_icon(svg_icons['add'], icon_color)),
+                ("Менеджер ботов", "bot_manager", create_svg_icon(svg_icons['settings'], icon_color)),
+                ("Проверка юзеров", "check", create_svg_icon(svg_icons['check'], icon_color)),
+                ("Автоответы ботов", "session", create_svg_icon(svg_icons['chat'], icon_color)),
+                ("Рассылка ботов", "rass", create_svg_icon(svg_icons['broadcast'], icon_color)),
             ])
         ]
         single_buttons = [
-            ("Поиск", "icons/icon100.png", "search"),
-            ("Прокси", "icons/icon101.png", "samit"),
-            ("Мониторинг", "icons/icon99.png", "kraken"),
-            ("Почта", "icons/icon102.png", "mail")
+            ("Поиск", create_svg_icon(svg_icons['search'], icon_color), "search"),
+            ("Прокси", create_svg_icon(svg_icons['globe'], icon_color), "samit"),
+            ("Мониторинг", create_svg_icon(svg_icons['monitor'], icon_color), "kraken"),
+            ("Почта", create_svg_icon(svg_icons['mail'], icon_color), "mail")
         ]
         self._sidebar_sections_widgets = []
         for title, left_icon, right_icon, items in sections:
@@ -287,19 +291,19 @@ class SideBar:
             layout.addWidget(container)
         for text, icon, name in single_buttons:
             btn = QPushButton(f"  {text}")
-            btn.setIcon(QIcon(resource_path(icon)))
+            btn.setIcon(icon)
             btn.setIconSize(QSize(19,19))
             btn.clicked.connect(lambda _, wn=name: self.main_window.handle_window_switch(wn))
             layout.addWidget(btn)
     def _build_sidebar_section(self, title, left_icon, right_icon, items, *args, **kwargs):
         header_btn = QPushButton(title)
-        header_btn.setIcon(QIcon(resource_path(left_icon)))
+        header_btn.setIcon(left_icon)
         header_btn.setIconSize(QSize(19,19))
         header_btn.setFlat(True)
         icon_label = QLabel()
         icon_label.setStyleSheet("background: transparent;")
-        pix = QPixmap(resource_path(right_icon)).scaled(21, 21, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-        icon_label.setPixmap(pix)
+        icon_pixmap = right_icon.pixmap(QSize(21, 21))
+        icon_label.setPixmap(icon_pixmap)
         btn_layout = QHBoxLayout(header_btn)
         btn_layout.setContentsMargins(0,0,0,0)
         btn_layout.setSpacing(0)
@@ -316,7 +320,7 @@ class SideBar:
         buttons = []
         for text, name, icon in items:
             btn = QPushButton(f"  {text}")
-            btn.setIcon(QIcon(resource_path(icon)))
+            btn.setIcon(icon)
             btn.setIconSize(QSize(19,19))
             btn.clicked.connect(lambda _, wn=name: self.main_window.handle_window_switch(wn))
             eff = QGraphicsOpacityEffect(btn)
@@ -360,8 +364,10 @@ class SideBar:
         self._sidebar_sections_widgets.append((header_btn, container, buttons, anim))
         return header_btn, container
     def _add_sidebar_special_buttons(self, layout, *args, **kwargs):
+        svg_icons = get_svg_icons()
+        icon_color = "#87CEEB"
         instructions_btn = QPushButton("  Информация (Click)")
-        instructions_btn.setIcon(QIcon(resource_path("icons/icon64.png")) if os.path.exists(resource_path("icons/icon62.png")) else QIcon())
+        instructions_btn.setIcon(create_svg_icon(svg_icons['info'], icon_color))
         instructions_btn.setIconSize(QSize(21, 21))
         sidebar_styles = StyleManager.get_default_sidebar_styles(getattr(self.main_window, 'is_dark_theme', False))
         hover_color = sidebar_styles['hover_color']
@@ -433,3 +439,5 @@ class SideBar:
                 block.number_label.setStyleSheet(statblock_styles['number_label'])
                 block.title_label.setStyleSheet(statblock_styles['title_label'])
                 block.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+    def update_icons_for_theme(self, *args, **kwargs):
+        pass

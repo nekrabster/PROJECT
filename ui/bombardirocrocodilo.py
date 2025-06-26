@@ -42,15 +42,20 @@ from ui.styles import StyleManager
 from ui.top import TopBar
 from ui.side import SideBar
 from ui.bottom import BottomBar
+def get_app_directory():
+    """Возвращает правильную рабочую директорию приложения"""
+    if getattr(sys, 'frozen', False):
+        # Для executable используем текущую рабочую директорию
+        return os.getcwd()
+    else:
+        # Для обычного Python-скрипта используем корневую директорию проекта
+        return os.path.abspath('.')
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.dirname(__file__), os.pardir, relative_path)
 def load_config():
-    if getattr(sys, 'frozen', False):
-        base_path = os.path.dirname(sys.executable)
-    else:
-        base_path = os.path.abspath('.')        
+    base_path = get_app_directory()
     DEFAULT_CONFIG = {
         "api_id": 0,
         "api_hash": "",
@@ -577,10 +582,7 @@ class MainWindow(QWidget):
                 return
             if not name.lower().endswith('.txt'):
                 name += '.txt'
-            if getattr(sys, 'frozen', False):
-                root = os.path.dirname(sys.executable)
-            else:
-                root = os.path.dirname(os.path.abspath(__file__))
+            root = get_app_directory()
             path = os.path.join(root, name)
             try:
                 with open(path, 'x', encoding='utf-8') as f:

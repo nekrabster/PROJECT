@@ -1,5 +1,6 @@
 import os, asyncio, random, string, time
 import aiofiles
+import aiofiles.os as aio_os
 from aiogram.exceptions import TelegramForbiddenError
 from PyQt6.QtCore import pyqtSignal, QObject, QMutex, QMutexLocker, QTimer
 from PyQt6.QtWidgets import (
@@ -183,8 +184,6 @@ class BotWorker(BaseThread):
                 self.safe_emit(self.log_signal, f"Бот {self.bot_username} остановлен")
             else:
                 self.safe_emit(self.log_signal, f"Бот с токеном {self.token[:10]}... остановлен")
-    def safe_filename(self, name, *args):
-        return "".join(c for c in name if c.isalnum() or c in (' ', '.', '_', '-')).rstrip()
     async def save_user_id(self, user_id, *args):
         try:
             if not self.bot_username or self.bot_username == "unknown":
@@ -192,22 +191,29 @@ class BotWorker(BaseThread):
                 return
             project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
             users_folder = os.path.join(project_root, "users_bot")
-            os.makedirs(users_folder, exist_ok=True)
-            safe_name = self.safe_filename(self.bot_username)
-            users_file_path = os.path.join(users_folder, f"{safe_name}.txt")
+            try:
+                await aio_os.makedirs(users_folder, exist_ok=True)
+            except:
+                os.makedirs(users_folder, exist_ok=True)
+            users_file_path = os.path.join(users_folder, f"{self.bot_username}.txt")
             existing_ids = set()
-            file_exists = os.path.exists(users_file_path)
+            try:
+                file_exists = await aio_os.path.exists(users_file_path)
+            except:
+                file_exists = os.path.exists(users_file_path)
             if file_exists:
                 try:
                     async with aiofiles.open(users_file_path, 'r', encoding='utf-8') as f:
-                        lines = await f.readlines()
+                        content = await f.read()
+                    lines = content.splitlines()
                     existing_ids = set(line.strip() for line in lines[1:] if line.strip())
                 except Exception as e:
                     self.safe_emit(self.error_signal, f"Ошибка чтения файла {users_file_path}: {e}")
                     return
             if str(user_id) not in existing_ids:
                 try:
-                    async with aiofiles.open(users_file_path, 'a', encoding='utf-8') as f:
+                    mode = 'a' if file_exists else 'w'
+                    async with aiofiles.open(users_file_path, mode, encoding='utf-8') as f:
                         if not file_exists:
                             await f.write(f"{self.token}\n")
                         await f.write(f"{user_id}\n")

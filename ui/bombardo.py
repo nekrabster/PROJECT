@@ -120,7 +120,10 @@ class BotManagerDialog(QDialog, ThreadStopMixin):
         button_layout.addWidget(self.short_desc_btn)        
         bot_actions_layout.addLayout(button_layout)
         self.param_input = QTextEdit(self)
-        self.param_input.setPlaceholderText("Введите новые значения (каждое с новой строки)...")
+        if len(self.selected_tokens) == 1:
+            self.param_input.setPlaceholderText("Введите новое значение...")
+        else:
+            self.param_input.setPlaceholderText("Введите новые значения (каждое с новой строки)...")
         self.param_input.setMinimumHeight(100)
         self.param_input.setMaximumHeight(200)
         bot_actions_layout.addWidget(self.param_input)
@@ -159,10 +162,17 @@ class BotManagerDialog(QDialog, ThreadStopMixin):
         if not self.active_param:
             self.log_area.append("⚠️ Выберите действие (имя, описание и т.д.)")
             return
-        values = [v.strip() for v in self.param_input.toPlainText().split('\n') if v.strip()]
-        if not values:
+        full_text = self.param_input.toPlainText().strip()
+        if not full_text:
             self.log_area.append(f"⚠️ Введите новое значение для {self.active_param}")
             return
+        if len(self.selected_tokens) == 1:
+            values = [full_text]
+        else:
+            values = [v.strip() for v in full_text.split('\n') if v.strip()]
+            if not values:
+                self.log_area.append(f"⚠️ Введите новое значение для {self.active_param}")
+                return
         self.running = True
         self.completed_tokens = set()
         self.start_btn.setEnabled(False)

@@ -441,10 +441,14 @@ class NewTokenWindow(QWidget, ThreadStopMixin):
                 random_digit1 = random.randint(0, 9)
                 random_letter = random.choice('abcdefghijklmnopqrstuvwxyz')
                 random_digit2 = random.randint(0, 9)
-                base_username = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=12))
+                base_username = initial_username.lower().removesuffix('bot')
                 new_suffix = f"{random_digit1}{random_letter}{random_digit2}"
                 if len(base_username) + len(new_suffix) + 3 > 32:
-                    base_username = base_username[:32 - len(new_suffix) - 3]
+                    available_len_for_base = 32 - len(new_suffix) - 3
+                    if available_len_for_base < 1:
+                        self.log_bot_error(session_basename, "Невозможно сгенерировать короткий username, базовое имя слишком длинное.", initial_username)
+                        return None
+                    base_username = base_username[:available_len_for_base]
                 current_username_to_try = f"{base_username}{new_suffix}bot"
                 self.logger.log(f"ℹ️ {session_basename} | Попытка создания с новым username: @{current_username_to_try}", LogLevel.INFO)
                 response = await self._send_command_and_read_response(client, bf, current_username_to_try, session_basename)

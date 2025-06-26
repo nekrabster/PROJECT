@@ -13,7 +13,7 @@ from ui.loader import load_config
 from ui.progress import ProgressWidget
 from ui.proxy_utils import parse_proxies_from_txt
 from ui.bots_win import BotTokenWindow
-from ui.thread_base import BaseThread, ThreadManager
+from ui.thread_base import BaseThread, ThreadManager, ThreadStopMixin
 from ui.appchuy import AiogramBotConnection, select_proxy, AiogramCustomError, AiogramErrorType
 class BotWorker(BaseThread):
     log_signal = pyqtSignal(str)
@@ -313,45 +313,39 @@ class AutoReplyAiogramWorker(QObject):
             progress = 100
         self.safe_emit(self.progress_signal, progress, status_text)
     def stop(self, *args):
+        """Неблокирующая остановка по образцу ThreadStopMixin"""
         if self._is_stopping:
             return
-        self.safe_emit(self.log_signal, "Начинаем остановку всех ботов...")
+        self.safe_emit(self.log_signal, "⏹️ Начинаем остановку всех ботов...")
         self._is_stopping = True
         self.running_flag = False
+        
         try:
+            # Останавливаем таймер
             if hasattr(self, 'check_timer') and self.check_timer.isActive():
                 self.check_timer.stop()
-                self.check_timer.deleteLater()
+            
+            # Используем стандартный ThreadManager для остановки
             self.thread_manager.stop_all_threads()
-            for thread in list(self.thread_manager.threads):
-                if thread.isRunning():
-                    thread.terminate()
-                    thread.wait(5000)
-                if hasattr(thread, 'bot_manager') and thread.bot_manager:
-                    try:
-                        thread.bot_manager = None
-                    except Exception:
-                        pass
-                thread.deleteLater()
-            self.thread_manager.threads.clear()
-            self.thread_manager.active_threads.clear()
-            self.thread_manager.completed_threads.clear()
+            
+            # Быстрая очистка без блокирующих операций
             self.start_count.clear()
             self.reply_count.clear()
             self.premium_count.clear()
             self.bot_usernames.clear()
             BotWorker._active_bots.clear()
-            import gc
-            gc.collect()
-            self.safe_emit(self.log_signal, "Все боты успешно остановлены")
+            
+            self.safe_emit(self.log_signal, "✅ Все боты успешно остановлены")
+            
         except Exception as e:
-            self.safe_emit(self.log_signal, f"Ошибка при остановке ботов: {e}")
+            self.safe_emit(self.log_signal, f"❌ Ошибка при остановке ботов: {e}")
         finally:
             self._is_stopping = False
 
-class BotWindow(QWidget):
+class BotWindow(QWidget, ThreadStopMixin):
     def __init__(self, parent=None, *args):
         super().__init__(parent, *args)
+        ThreadStopMixin.__init__(self)
         self.main_window = parent
         self._error_log_path = None
         if hasattr(self.main_window, 'config_changed'):
@@ -429,6 +423,11 @@ class BotWindow(QWidget):
         self.proxies_list = []
         self.proxy_txt_path = None
         self.selected_tokens = []
+    
+    def _on_thread_finished(self, thread, *args):
+        """Обработчик завершения потока для ThreadStopMixin"""
+        pass
+    
     def on_bots_win_tokens_updated(self, tokens):
         if len(tokens) != len(self.selected_tokens):
             self.selected_tokens = tokens
@@ -560,44 +559,24 @@ class BotWindow(QWidget):
         except Exception as e:
             self.log_message(f"Не удалось отправить отчет об ошибке: {e}")
     def stop_process(self, *args):
+        """Остановка процесса по образцу subscribe.py - без блокировки UI"""
         try:
-            self.log_message("Остановка процесса...")
+            self.log_message("⏹️ Остановка процесса...")
             self.stop_button.setEnabled(False)
             self.start_button.setEnabled(False)
             self.running_flag[0] = False
+            self.stop_all_operations()
             if self.auto_reply_worker:
                 self.auto_reply_worker.stop()
-                self.progress_widget.update_progress(50, "Останавливаем потоки...")      
-            QTimer.singleShot(1000, lambda: self._finish_stop_process())
-        except Exception as e:
-            self.log_message(f"Критическая ошибка при остановке процесса: {e}")
+                self.auto_reply_worker = None
             self.start_button.setEnabled(True)
             self.stop_button.setEnabled(False)
-    def _finish_stop_process(self, *args):
-        try:
-            if self.auto_reply_worker:
-                if hasattr(self.auto_reply_worker, 'thread_manager'):
-                    for thread in list(self.auto_reply_worker.thread_manager.threads):
-                        if thread.isRunning():
-                            thread.terminate()
-                            thread.wait(3000)
-                        thread.deleteLater()
-                    self.auto_reply_worker.thread_manager.threads.clear()
-                    self.auto_reply_worker.thread_manager = None
-                self.auto_reply_worker.deleteLater()
-                self.auto_reply_worker = None
+            self.progress_widget.update_progress(100, "Процесс остановлен")
+            self.log_message("✅ Процесс остановлен, сессии ботов завершены.")
         except Exception as e:
-            self.log_message(f"Ошибка при финальной очистке: {e}")
-        try:
-            import gc
-            gc.collect()
-            gc.collect()
-        except Exception:
-            pass
-        self.start_button.setEnabled(True)
-        self.stop_button.setEnabled(False)
-        self.progress_widget.update_progress(100, "Процесс остановлен")
-        self.log_message("Процесс остановлен, сессии ботов завершены.")
+            self.log_message(f"❌ Ошибка при остановке процесса: {e}")
+            self.start_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
     def update_stats(self, total_starts, total_replies, *args):
         for i in range(self.stats_list.count()):
             if self.stats_list.item(i).text().startswith("Общая статистика:"):

@@ -189,52 +189,29 @@ class BotWorker(BaseThread):
             if not self.bot_username or self.bot_username == "unknown":
                 self.safe_emit(self.log_signal, f"⚠️ Не удалось сохранить user_id {user_id}: имя бота ({self.bot_username}) не определено.")
                 return
-            import sys
-            if hasattr(sys, 'frozen') and sys.frozen:
-                project_root = os.path.dirname(sys.executable)
-            else:
-                try:
-                    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                except Exception:
-                    project_root = os.getcwd()
-            users_folder = os.path.join(project_root, "users_bot")
-            try:
-                await aio_os.makedirs(users_folder, exist_ok=True)
-            except Exception:
-                os.makedirs(users_folder, exist_ok=True)
-            safe_bot_name = "".join(c for c in self.bot_username if c.isalnum() or c in ('_', '-'))
-            users_file_path = os.path.join(users_folder, f"{safe_bot_name}.txt")
+            users_folder = os.path.join(os.getcwd(), "users_bot")
+            os.makedirs(users_folder, exist_ok=True)
+            users_file_path = os.path.join(users_folder, f"{self.bot_username}.txt")
             existing_ids = set()
-            try:
-                file_exists = await aio_os.path.exists(users_file_path)
-            except Exception:
-                file_exists = os.path.exists(users_file_path)
+            file_exists = os.path.exists(users_file_path)
             if file_exists:
                 try:
-                    async with aiofiles.open(users_file_path, 'r', encoding='utf-8') as f:
-                        content = await f.read()
-                    lines = content.splitlines()
+                    with open(users_file_path, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
                     existing_ids = set(line.strip() for line in lines[1:] if line.strip())
-                except Exception:
-                    pass
-            user_id_str = str(user_id)
-            if user_id_str not in existing_ids:
+                except Exception as e:
+                    self.safe_emit(self.error_signal, f"Ошибка чтения файла {users_file_path}: {e}")
+                    return
+            if str(user_id) not in existing_ids:
                 try:
-                    async with aiofiles.open(users_file_path, 'a', encoding='utf-8') as f:
+                    with open(users_file_path, 'a', encoding='utf-8') as f:
                         if not file_exists:
-                            await f.write(f"{self.token}\n")
-                        await f.write(f"{user_id_str}\n")
-                except Exception:
-                    try:
-                        with open(users_file_path, 'a', encoding='utf-8') as f:
-                            if not file_exists:
-                                f.write(f"{self.token}\n")
-                            f.write(f"{user_id_str}\n")
-                            f.flush()
-                    except Exception as e:
-                        self.safe_emit(self.error_signal, f"Ошибка записи файла {users_file_path}: {e}")
+                            f.write(f"{self.token}\n")
+                        f.write(f"{user_id}\n")
+                except Exception as e:
+                    self.safe_emit(self.error_signal, f"Ошибка записи в файл {users_file_path}: {e}")
         except Exception as e:
-            self.safe_emit(self.error_signal, f"Ошибка сохранения user_id для {self.bot_username}: {e}")
+            self.safe_emit(self.error_signal, f"Ошибка при сохранении user_id для бота {self.bot_username}: {e}")
     def generate_random_text(self, *args):
         return ''.join(random.choices(string.ascii_letters + string.digits, k=32))
     def safe_update_stats(self, start_count=None, reply_count=None, premium_count=None, *args):

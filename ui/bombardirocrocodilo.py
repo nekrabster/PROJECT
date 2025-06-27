@@ -22,6 +22,7 @@ from ui.subscribe import SubscribeWindow
 from ui.malining import MailingWindow
 from ui.components import ComponentsWindow
 from ui.session import BotWindow
+from ui.sessionbeta import BotWindowBeta
 from ui.rass import RassWindow
 from ui.check import CheckWindow
 from ui.newtoken import NewTokenWindow
@@ -347,6 +348,7 @@ class MainWindow(QWidget):
             "components": ComponentsWindow(self.session_folder, self),
             "bot_manager": BotManagerWindow(self.bot_token_folder, self),
             "session": BotWindow(self),
+            "sessionbeta": BotWindowBeta(self),
             "rass": RassWindow(self.session_folder, self),
             "check": CheckWindow(self),
             "newtoken": NewTokenWindow(self.session_folder, self),

@@ -1,4 +1,6 @@
 import os, asyncio, random, string, time
+import aiofiles
+import aiofiles.os as aio_os
 from aiogram.exceptions import TelegramForbiddenError
 from PyQt6.QtCore import pyqtSignal, QObject, QMutex, QMutexLocker, QTimer
 from PyQt6.QtWidgets import (
@@ -189,30 +191,49 @@ class BotWorker(BaseThread):
                 return
             import sys
             if getattr(sys, 'frozen', False):
-                project_root = os.path.dirname(sys.executable)
+                project_root = os.getcwd()
             else:
                 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
             users_folder = os.path.join(project_root, "users_bot")
-            os.makedirs(users_folder, exist_ok=True)
+            try:
+                if not os.path.exists(users_folder):
+                    self.safe_emit(self.log_signal, f"Создаем папку пользователей: {users_folder}")
+                    os.makedirs(users_folder, exist_ok=True)
+                    if not os.path.exists(users_folder):
+                        raise OSError(f"Не удалось создать папку {users_folder}")
+                    self.safe_emit(self.log_signal, f"✅ Папка пользователей создана: {users_folder}")
+            except Exception as e:
+                self.safe_emit(self.error_signal, f"❌ Ошибка создания папки {users_folder}: {e}")
+                return
+                
             users_file_path = os.path.join(users_folder, f"{self.bot_username}.txt")
             existing_ids = set()
-            file_exists = os.path.exists(users_file_path)
-            if file_exists:
-                try:
-                    with open(users_file_path, 'r', encoding='utf-8') as f:
-                        lines = f.readlines()
+            file_exists = False
+            try:
+                if os.path.exists(users_file_path):
+                    file_exists = True
+                    async with aiofiles.open(users_file_path, 'r', encoding='utf-8') as f:
+                        lines = await f.readlines()
                     existing_ids = set(line.strip() for line in lines[1:] if line.strip())
-                except Exception as e:
-                    self.safe_emit(self.error_signal, f"Ошибка чтения файла {users_file_path}: {e}")
-                    return
+            except Exception as e:
+                self.safe_emit(self.error_signal, f"Ошибка чтения файла {users_file_path}: {e}")
+                return
             if str(user_id) not in existing_ids:
                 try:
-                    with open(users_file_path, 'a', encoding='utf-8') as f:
-                        if not file_exists:
-                            f.write(f"{self.token}\n")
-                        f.write(f"{user_id}\n")
+                    if not file_exists:
+                        self.safe_emit(self.log_signal, f"Создаем новый файл пользователей: {users_file_path}")
+                        async with aiofiles.open(users_file_path, 'w', encoding='utf-8') as f:
+                            await f.write(f"{self.token}\n")
+                            await f.write(f"{user_id}\n")
+                        self.safe_emit(self.log_signal, f"✅ Пользователь {user_id} сохранен в новый файл для {self.bot_username}")
+                    else:
+                        async with aiofiles.open(users_file_path, 'a', encoding='utf-8') as f:
+                            await f.write(f"{user_id}\n")
+                        self.safe_emit(self.log_signal, f"✅ Пользователь {user_id} добавлен в файл для {self.bot_username}")
                 except Exception as e:
-                    self.safe_emit(self.error_signal, f"Ошибка записи в файл {users_file_path}: {e}")
+                    self.safe_emit(self.error_signal, f"❌ Ошибка записи в файл {users_file_path}: {e}")
+            else:
+                self.safe_emit(self.log_signal, f"Пользователь {user_id} уже существует для {self.bot_username}")     
         except Exception as e:
             self.safe_emit(self.error_signal, f"Ошибка при сохранении user_id для бота {self.bot_username}: {e}")
     def generate_random_text(self, *args):

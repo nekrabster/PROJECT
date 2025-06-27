@@ -83,6 +83,7 @@ jobs:
             --include-module=ui.newtoken `
             --include-module=ui.kachok `
             --include-module=ui.session `
+            --include-module=ui.sessionbeta `
             --include-module=ui.subscribe `
             --include-module=ui.session_manager `
             --include-module=ui.sim_manager `

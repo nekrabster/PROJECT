@@ -275,6 +275,7 @@ class SideBar:
                 ("Менеджер ботов", "bot_manager", create_svg_icon(svg_icons['settings'], icon_color)),
                 ("Проверка юзеров", "check", create_svg_icon(svg_icons['check'], icon_color)),
                 ("Автоответы ботов", "session", create_svg_icon(svg_icons['chat'], icon_color)),
+                ("Автоответы ботов (beta)", "sessionbeta", create_svg_icon(svg_icons['chat'], icon_color)),
                 ("Рассылка ботов", "rass", create_svg_icon(svg_icons['broadcast'], icon_color)),
             ])
         ]

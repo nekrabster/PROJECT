@@ -253,15 +253,17 @@ class ServerApiClient:
         self.server_url = server_url
         self.ssh_key = self.get_ssh_key()
         self.activation_key = self.get_activation_key()
-    
     def get_server_url(self, *args):
         try:
             with open("server_port.txt", 'r') as f:
-                port = f.read().strip()
-                return f"http://localhost:{port}"
+                content = f.read().strip()
+                if content.startswith('http'):
+                    return content
+                else:
+                    port = content
+                    return f"http://localhost:{port}"
         except Exception:
-            return "http://localhost:8000"
-    
+            return "http://5.129.207.183:8000"
     def get_ssh_key(self, *args):
         try:
             ssh_key_file = os.path.expanduser("~/.ssh/id_rsa.pub")
@@ -271,7 +273,6 @@ class ServerApiClient:
         except Exception:
             pass
         return platform.node()
-    
     def get_activation_key(self, *args):
         try:
             config_path = "config.txt"
@@ -283,7 +284,6 @@ class ServerApiClient:
         except Exception:
             pass
         return "default_key"
-    
     async def start_bots(self, tokens, text=None, min_delay=0, max_delay=0, reply_to_all=True, proxy=None, *args):
         data = {
             "auth": {
@@ -299,8 +299,7 @@ class ServerApiClient:
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(f"{self.server_url}/start_bots", json=data) as response:
-                return await response.json()
-    
+                return await response.json()    
     async def stop_bots(self, *args):
         data = {
             "auth": {
@@ -310,20 +309,17 @@ class ServerApiClient:
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(f"{self.server_url}/stop_bots", json=data) as response:
-                return await response.json()
-    
+                return await response.json()    
     async def get_status(self, *args):
         async with aiohttp.ClientSession() as session:
             url = f"{self.server_url}/status/{self.ssh_key}/{self.activation_key}"
             async with session.get(url) as response:
-                return await response.json()
-    
+                return await response.json()    
     async def get_users(self, *args):
         async with aiohttp.ClientSession() as session:
             url = f"{self.server_url}/users/{self.ssh_key}/{self.activation_key}"
             async with session.get(url) as response:
                 return await response.json()
-
 class AutoReplyAiogramWorker(QObject):
     log_signal = pyqtSignal(str)
     stats_signal = pyqtSignal(int, int)
@@ -367,7 +363,6 @@ class AutoReplyAiogramWorker(QObject):
         self.running_flag = True
         self.safe_emit(self.log_signal, "Отправка запроса на сервер для запуска ботов...")
         asyncio.create_task(self._start_bots_on_server())
-    
     async def _start_bots_on_server(self, *args, **kwargs):
         try:
             self.safe_emit(self.progress_signal, 25, "Подключение к серверу...")
@@ -395,35 +390,28 @@ class AutoReplyAiogramWorker(QObject):
         if not self.running_flag or self._is_stopping:
             return
         asyncio.create_task(self._update_server_status())
-    
     async def _update_server_status(self, *args, **kwargs):
         try:
             status_response = await self.api_client.get_status()
             active_bots = status_response.get('active_bots', 0)
-            stats = status_response.get('stats', {})
-            
+            stats = status_response.get('stats', {}) 
             total_starts = sum(stat.get('start_count', 0) for stat in stats.values())
             total_replies = sum(stat.get('reply_count', 0) for stat in stats.values())
-            
             self.stats_signal.emit(total_starts, total_replies)
-            
             for bot_username, bot_stats in stats.items():
                 start_count = bot_stats.get('start_count', 0)
                 reply_count = bot_stats.get('reply_count', 0)
                 premium_count = bot_stats.get('premium_count', 0)
                 self.bot_stats_signal.emit(bot_username, start_count, reply_count, premium_count)
-            
             if active_bots > 0:
                 status_text = f"Активно на сервере: {active_bots} ботов"
                 progress = 100
             else:
                 status_text = "Боты не активны на сервере"
                 progress = 0
-            
             if status_text != self.last_status_text:
                 self.safe_emit(self.log_signal, status_text)
-                self.last_status_text = status_text
-            
+                self.last_status_text = status_text            
             self.safe_emit(self.progress_signal, progress, status_text)
         except Exception as e:
             error_msg = str(e).lower()
@@ -438,7 +426,6 @@ class AutoReplyAiogramWorker(QObject):
         self._is_stopping = True
         self.running_flag = False
         asyncio.create_task(self._stop_bots_on_server())
-    
     async def _stop_bots_on_server(self, *args, **kwargs):
         try:
             if hasattr(self, 'check_timer') and self.check_timer.isActive():
@@ -457,12 +444,10 @@ class AutoReplyAiogramWorker(QObject):
             self.safe_emit(self.log_signal, f"❌ Ошибка при остановке ботов: {e}")
         finally:
             self._is_stopping = False
-    
     async def _download_users_from_server(self, *args, **kwargs):
         try:
             users_response = await self.api_client.get_users()
             users_data = users_response.get('users', {})
-            
             if users_data:
                 self.safe_emit(self.log_signal, "📥 Скачивание пользователей с сервера...")
                 import sys
@@ -472,31 +457,25 @@ class AutoReplyAiogramWorker(QObject):
                     try:
                         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                     except Exception:
-                        project_root = os.getcwd()
-                
+                        project_root = os.getcwd()  
                 users_folder = os.path.join(project_root, "users_bot")
                 os.makedirs(users_folder, exist_ok=True)
-                
                 for bot_username, user_ids in users_data.items():
                     if user_ids:
                         safe_bot_name = "".join(c for c in bot_username if c.isalnum() or c in ('_', '-'))
-                        users_file_path = os.path.join(users_folder, f"{safe_bot_name}.txt")
-                        
+                        users_file_path = os.path.join(users_folder, f"{safe_bot_name}.txt")   
                         existing_ids = set()
                         if os.path.exists(users_file_path):
                             with open(users_file_path, 'r', encoding='utf-8') as f:
                                 lines = f.readlines()
                                 if lines:
-                                    existing_ids = set(line.strip() for line in lines[1:] if line.strip())
-                        
+                                    existing_ids = set(line.strip() for line in lines[1:] if line.strip())     
                         new_users = set(str(uid) for uid in user_ids) - existing_ids
                         if new_users:
                             with open(users_file_path, 'a', encoding='utf-8') as f:
                                 for user_id in new_users:
                                     f.write(f"{user_id}\n")
-                        
                         self.safe_emit(self.log_signal, f"📥 {bot_username}: добавлено {len(new_users)} новых пользователей")
-                
                 self.safe_emit(self.log_signal, "✅ Пользователи успешно скачаны и сохранены")
         except Exception as e:
             self.safe_emit(self.log_signal, f"❌ Ошибка скачивания пользователей: {e}")
@@ -588,19 +567,16 @@ class BotWindowBeta (QWidget, ThreadStopMixin):
         self.startup_timer.start(2000)
     def check_server_on_startup(self, *args, **kwargs):
         asyncio.create_task(self._check_existing_bots())
-    
     async def _check_existing_bots(self, *args, **kwargs):
         try:
             self.log_message("🔍 Проверка состояния ботов на сервере...")
             status_response = await self.api_client.get_status()
             active_bots = status_response.get('active_bots', 0)
-            
             if active_bots > 0:
                 self.log_message(f"🔄 Найдено {active_bots} активных ботов на сервере")
                 self.running_flag[0] = True
                 self.start_button.setEnabled(False)
                 self.stop_button.setEnabled(True)
-                
                 if not self.auto_reply_worker:
                     self.auto_reply_worker = AutoReplyAiogramWorker(
                         [], self.running_flag, None, None, 0, 0, True
@@ -608,19 +584,16 @@ class BotWindowBeta (QWidget, ThreadStopMixin):
                     self.auto_reply_worker.log_signal.connect(self.log_message)
                     self.auto_reply_worker.stats_signal.connect(self.update_stats)
                     self.auto_reply_worker.bot_stats_signal.connect(self.update_bot_stats)
-                
                 await self._download_users_from_server()
                 self.log_message("✅ Подключение к существующим ботам восстановлено")
             else:
                 self.log_message("ℹ️ Активных ботов на сервере не найдено")
         except Exception as e:
             self.log_message(f"⚠️ Не удалось подключиться к серверу: {e}")
-    
     async def _download_users_from_server(self, *args, **kwargs):
         try:
             users_response = await self.api_client.get_users()
-            users_data = users_response.get('users', {})
-            
+            users_data = users_response.get('users', {})            
             if users_data:
                 import sys
                 if hasattr(sys, 'frozen') and sys.frozen:
@@ -630,22 +603,18 @@ class BotWindowBeta (QWidget, ThreadStopMixin):
                         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                     except Exception:
                         project_root = os.getcwd()
-                
                 users_folder = os.path.join(project_root, "users_bot")
                 os.makedirs(users_folder, exist_ok=True)
-                
                 for bot_username, user_ids in users_data.items():
                     if user_ids:
                         safe_bot_name = "".join(c for c in bot_username if c.isalnum() or c in ('_', '-'))
-                        users_file_path = os.path.join(users_folder, f"{safe_bot_name}.txt")
-                        
+                        users_file_path = os.path.join(users_folder, f"{safe_bot_name}.txt")                        
                         existing_ids = set()
                         if os.path.exists(users_file_path):
                             with open(users_file_path, 'r', encoding='utf-8') as f:
                                 lines = f.readlines()
                                 if lines:
                                     existing_ids = set(line.strip() for line in lines[1:] if line.strip())
-                        
                         new_users = set(str(uid) for uid in user_ids) - existing_ids
                         if new_users:
                             with open(users_file_path, 'a', encoding='utf-8') as f:
@@ -653,7 +622,6 @@ class BotWindowBeta (QWidget, ThreadStopMixin):
                                     f.write(f"{user_id}\n")
         except Exception:
             pass
-    
     def _on_thread_finished(self, thread, *args, **kwargs):
         pass
     def on_bots_win_tokens_updated(self, tokens, *args, **kwargs):
@@ -816,7 +784,6 @@ class BotWindowBeta (QWidget, ThreadStopMixin):
                 break
         if not updated:
             self.stats_list.addItem(stat_message)
-    
     def update_stats(self, total_starts, total_replies, *args):
         for i in range(self.stats_list.count()):
             if self.stats_list.item(i).text().startswith("Общая статистика:"):

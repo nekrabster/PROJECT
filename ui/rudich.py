@@ -146,7 +146,7 @@ class ActivationWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)        
-        self.CURRENT_VERSION = "2.3.6"
+        self.CURRENT_VERSION = "2.3.7"
         self.drag_position = None
         self.validation_worker = None
         self.update_url = None
@@ -282,7 +282,7 @@ class ActivationWindow(QWidget):
     def setup_version_info(self, *args, **kwargs):
         layout = QVBoxLayout()
         layout.setSpacing(15)        
-        self.version_label = QLabel("Версия 2.3.6")
+        self.version_label = QLabel("Версия 2.3.7")
         self.version_label.setStyleSheet(self._CACHED_STYLES['version'])
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.version_label)        
@@ -534,7 +534,7 @@ class UpdateCheckTask(QThread):
         self.window = window
     def run(self, *args, **kwargs):
         UPDATE_CHECK_URL = "https://update.smm-aviator.com/version/update.php"
-        CURRENT_VERSION = "2.3.6"
+        CURRENT_VERSION = "2.3.7"
         try:
             response = requests.get(UPDATE_CHECK_URL)
             response.raise_for_status()

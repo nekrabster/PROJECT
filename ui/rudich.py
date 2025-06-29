@@ -376,38 +376,43 @@ class ActivationWindow(QWidget):
         self.version_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.version_label.mousePressEvent = self.download_update
     def download_update(self, event=None, *args, **kwargs):
-        CURRENT_FILE = "Soft-K.exe"
-        TEMP_FILE = "Soft-K_temp.exe"
-        UPDATER_FILE = "updater.bat"
         try:
-            self.version_label.setText("Скачивание новой версии...")
-            response = requests.get(self.update_url, stream=True)
-            if response.status_code == 200:
-                with open(TEMP_FILE, 'wb') as f:
-                    for chunk in response.iter_content(1024):
-                        f.write(chunk)
-            else:
-                raise Exception(f"Ошибка загрузки: статус {response.status_code}")
-            self.version_label.setText("Подготовка установщика...")
+            current_file = os.path.basename(sys.executable)
+            temp_file = f"{os.path.splitext(current_file)[0]}_temp.exe"
+            updater_file = "updater.bat"
+            self.version_label.setText("Скачивание...")
+            QApplication.processEvents()
+            response = requests.get(self.update_url, stream=True, timeout=30)
+            response.raise_for_status()
+            with open(temp_file, 'wb') as f:
+                for chunk in response.iter_content(8192):
+                    f.write(chunk)
+            self.version_label.setText("Установка...")
+            QApplication.processEvents()
             updater_code = f"""@echo off
-chcp 65001 >nul
+chcp 65001 > nul
 title Обновление программы
-:waitloop
-tasklist | find /i \"{CURRENT_FILE}\" >nul 2>&1
-if not errorlevel 1 (
-    timeout /t 1 >nul
-    goto waitloop
+echo.
+echo  Пожалуйста, подождите, идет обновление...
+echo.
+:wait_loop
+tasklist /fi "imagename eq {current_file}" | find ":" > nul
+if %errorlevel% == 0 (
+    taskkill /f /im "{current_file}" >nul 2>&1
+    timeout /t 1 > nul
+    goto wait_loop
 )
-move /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\" >nul 2>&1
-start \"\" \"{CURRENT_FILE}\"
-del \"%~f0\"
+move /y "{temp_file}" "{current_file}"
+start "" "{current_file}"
+del "%~f0"
 """
-            with open(UPDATER_FILE, "w", encoding="utf-8") as f:
+            with open(updater_file, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            QProcess.startDetached(UPDATER_FILE)
-            QTimer.singleShot(100, QApplication.quit)
+            QProcess.startDetached(updater_file, [])
+            QApplication.instance().quit()
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
+            self.version_label.setText(f"Версия {self.CURRENT_VERSION}")
     def check_update_status(self, *args, **kwargs):
         if asyncio.get_event_loop().is_running():
             QTimer.singleShot(100, lambda: self.check_update_status())

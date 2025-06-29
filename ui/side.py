@@ -41,7 +41,7 @@ class DispatcherLogo(QWidget):
     update_available = pyqtSignal(str, str)
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.current_version = "2.3.5"
+        self.current_version = "2.3.8"
         self.update_url = None
         self.update_checker = None
         self.setup_ui()
@@ -132,32 +132,22 @@ class DispatcherLogo(QWidget):
             self.version_label.setText("Установка...")
             QApplication.processEvents()
             updater_code = f"""@echo off
+chcp 65001 >nul
 title Обновление программы
-
-:: Завершаем старую версию, если она еще запущена
-taskkill /f /im "{CURRENT_FILE}" >nul 2>&1
-
-:: Показываем сообщение о процессе обновления
-echo Пожалуйста подождите - идет обновление...
-echo.
-
-:: Короткая пауза для завершения процесса
-timeout /t 1 >nul
-
-:: Заменяем exe
-move /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1
-
-:: Сразу запускаем новую версию
-start "" "{CURRENT_FILE}"
-
-:: Удаляем себя
-del "%~f0"
+:waitloop
+tasklist | find /i \"{CURRENT_FILE}\" >nul 2>&1
+if not errorlevel 1 (
+    timeout /t 1 >nul
+    goto waitloop
+)
+move /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\" >nul 2>&1
+start \"\" \"{CURRENT_FILE}\"
+del \"%~f0\"
 """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
             QProcess.startDetached(UPDATER_FILE)
-            QProcess.startDetached("taskkill", ["/f", "/im", "Soft-K.exe"])
-            QTimer.singleShot(500, QApplication.quit)
+            QTimer.singleShot(100, QApplication.quit)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
             self.version_label.setText(f"Версия {self.current_version}")

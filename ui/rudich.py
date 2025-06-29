@@ -146,7 +146,7 @@ class ActivationWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)        
-        self.CURRENT_VERSION = "2.3.7"
+        self.CURRENT_VERSION = "2.3.8"
         self.drag_position = None
         self.validation_worker = None
         self.update_url = None
@@ -282,7 +282,7 @@ class ActivationWindow(QWidget):
     def setup_version_info(self, *args, **kwargs):
         layout = QVBoxLayout()
         layout.setSpacing(15)        
-        self.version_label = QLabel("Версия 2.3.7")
+        self.version_label = QLabel("Версия 2.3.8")
         self.version_label.setStyleSheet(self._CACHED_STYLES['version'])
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.version_label)        
@@ -390,32 +390,22 @@ class ActivationWindow(QWidget):
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
             self.version_label.setText("Подготовка установщика...")
             updater_code = f"""@echo off
+chcp 65001 >nul
 title Обновление программы
-
-:: Завершаем старую версию, если она еще запущена
-taskkill /f /im "{CURRENT_FILE}" >nul 2>&1
-
-:: Показываем сообщение о процессе обновления
-echo Пожалуйста подождите - идет обновление...
-echo.
-
-:: Короткая пауза для завершения процесса
-timeout /t 1 >nul
-
-:: Заменяем exe
-move /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1
-
-:: Сразу запускаем новую версию
-start "" "{CURRENT_FILE}"
-
-:: Удаляем себя
-del "%~f0"
+:waitloop
+tasklist | find /i \"{CURRENT_FILE}\" >nul 2>&1
+if not errorlevel 1 (
+    timeout /t 1 >nul
+    goto waitloop
+)
+move /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\" >nul 2>&1
+start \"\" \"{CURRENT_FILE}\"
+del \"%~f0\"
 """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
             QProcess.startDetached(UPDATER_FILE)
-            QProcess.startDetached("taskkill", ["/f", "/im", "Soft-K.exe"])
-            QTimer.singleShot(500, QApplication.quit)
+            QTimer.singleShot(100, QApplication.quit)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
     def check_update_status(self, *args, **kwargs):
@@ -534,7 +524,7 @@ class UpdateCheckTask(QThread):
         self.window = window
     def run(self, *args, **kwargs):
         UPDATE_CHECK_URL = "https://update.smm-aviator.com/version/update.php"
-        CURRENT_VERSION = "2.3.7"
+        CURRENT_VERSION = "2.3.8"
         try:
             response = requests.get(UPDATE_CHECK_URL)
             response.raise_for_status()

@@ -41,7 +41,7 @@ class DispatcherLogo(QWidget):
     update_available = pyqtSignal(str, str)
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.current_version = "2.3.8"
+        self.current_version = "2.3.9"
         self.update_url = None
         self.update_checker = None
         self.setup_ui()
@@ -147,6 +147,10 @@ class DispatcherLogo(QWidget):
                 updater_code = f"""@echo off
 chcp 65001 > nul
 title Обновление программы
+
+:: Устанавливаем рабочую директорию на ту, где находится сам скрипт
+cd /d "%~dp0"
+
 echo.
 echo *** Идет обновление программы. Пожалуйста, подождите. ***
 echo.

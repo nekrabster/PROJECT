@@ -380,7 +380,7 @@ class ActivationWindow(QWidget):
         TEMP_FILE = "Soft-K_temp.exe"
         UPDATER_FILE = "updater.bat"
         try:
-            self.version_label.setText("Скачивание новой версии...")
+            self.version_label.setText("Скачивание...")
             response = requests.get(self.update_url, stream=True)
             if response.status_code == 200:
                 with open(TEMP_FILE, 'wb') as f:
@@ -388,37 +388,34 @@ class ActivationWindow(QWidget):
                         f.write(chunk)
             else:
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
-            self.version_label.setText("Подготовка установщика...")
+            self.version_label.setText("Установка...")
             updater_code = f"""@echo off
 title Обновление программы
-echo Завершение старого процесса...
+echo Завершение процесса...
 taskkill /f /im "{CURRENT_FILE}" >nul 2>&1
 timeout /t 3 >nul
-echo Проверка файлов...
-if not exist "{TEMP_FILE}" (
+echo Обновление файлов...
+if exist "{TEMP_FILE}" (
+    del /f /q "{CURRENT_FILE}" 2>nul
+    ren "{TEMP_FILE}" "{CURRENT_FILE}"
+    if exist "{CURRENT_FILE}" (
+        echo Запуск новой версии...
+        start "" "{CURRENT_FILE}"
+    )
+) else (
     echo Ошибка: временный файл не найден
     pause
-    exit /b 1
 )
-echo Замена файла...
-:retry
-move /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1
-if errorlevel 1 (
-    echo Повторная попытка через 2 секунды...
-    timeout /t 2 >nul
-    goto retry
-)
-echo Запуск новой версии...
-start "" "{CURRENT_FILE}"
-timeout /t 1 >nul
-del "%~f0"
+timeout /t 2 >nul
+del /f /q "%~f0" >nul 2>&1
 """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
+            QApplication.processEvents()
             QProcess.startDetached(UPDATER_FILE)
-            QTimer.singleShot(2000, QApplication.quit)
+            QTimer.singleShot(1000, QApplication.quit)
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
+            QMessageBox.critical(self, "Ошибка", f"Ошибка обновления: {e}")
     def check_update_status(self, *args, **kwargs):
         if asyncio.get_event_loop().is_running():
             QTimer.singleShot(100, lambda: self.check_update_status())

@@ -116,38 +116,56 @@ class DispatcherLogo(QWidget):
         if self.update_url:
             self.download_update()
     def download_update(self, *args, **kwargs):
-        CURRENT_FILE = "Soft-K.exe"
-        TEMP_FILE = "Soft-K_temp.exe"
-        UPDATER_FILE = "updater.bat"
         try:
+            if getattr(sys, 'frozen', False) and sys.executable:
+                app_dir = os.path.dirname(sys.executable)
+                current_file_name = os.path.basename(sys.executable)
+            else:
+                app_dir = os.getcwd()
+                current_file_name = "Soft-K.exe"
+            temp_file_path = os.path.join(app_dir, f"temp_{current_file_name}")
+            updater_file_path = os.path.join(app_dir, "updater.bat")
             self.version_label.setText("Скачивание...")
             QApplication.processEvents()
             response = requests.get(self.update_url, stream=True)
-            if response.status_code == 200:
-                with open(TEMP_FILE, 'wb') as f:
-                    for chunk in response.iter_content(1024):
-                        f.write(chunk)
-            else:
-                raise Exception(f"Ошибка загрузки: статус {response.status_code}")
+            response.raise_for_status()
+            with open(temp_file_path, 'wb') as f:
+                for chunk in response.iter_content(1024):
+                    f.write(chunk)
             self.version_label.setText("Установка...")
             QApplication.processEvents()
             updater_code = f"""@echo off
-chcp 65001 >nul
+chcp 65001 > nul
 title Обновление программы
-:waitloop
-tasklist | find /i \"{CURRENT_FILE}\" >nul 2>&1
-if not errorlevel 1 (
-    timeout /t 1 >nul
-    goto waitloop
+echo.
+echo *** Идет обновление программы. Пожалуйста, подождите. ***
+echo.
+set "CURRENT_FILE={current_file_name}"
+set "TEMP_FILE={os.path.basename(temp_file_path)}"
+echo Ожидание закрытия старой версии (%CURRENT_FILE%)...
+:wait_loop
+tasklist /FI "IMAGENAME eq %CURRENT_FILE%" 2>NUL | find /I "%CURRENT_FILE%" > NUL
+if "%ERRORLEVEL%"=="0" (
+    timeout /t 1 /nobreak > NUL
+    goto :wait_loop
 )
-if exist \"{CURRENT_FILE}\" del /f /q \"{CURRENT_FILE}\"
-move /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\"
-start \"\" \"{CURRENT_FILE}\"
-del /f /q \"%~f0\"
+echo.
+echo Процесс завершен. Замена файлов...
+timeout /t 2 /nobreak > NUL
+if exist "%CURRENT_FILE%" (
+    del /F /Q "%CURRENT_FILE%"
+)
+if exist "%TEMP_FILE%" (
+    ren "%TEMP_FILE%" "%CURRENT_FILE%"
+)
+echo.
+echo Запуск новой версии...
+start "" "%CURRENT_FILE%"
+(goto) 2>nul & del "%~f0"
 """
-            with open(UPDATER_FILE, "w", encoding="utf-8") as f:
+            with open(updater_file_path, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            QProcess.startDetached(UPDATER_FILE)
+            QProcess.startDetached(updater_file_path, [], app_dir)
             QTimer.singleShot(500, QApplication.quit)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")

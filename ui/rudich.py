@@ -376,89 +376,54 @@ class ActivationWindow(QWidget):
         self.version_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.version_label.mousePressEvent = self.download_update
     def download_update(self, event=None, *args, **kwargs):
-        if not self.update_url:
-            return
+        CURRENT_FILE = "Soft-K.exe"
+        TEMP_FILE = "Soft-K_temp.exe"
+        UPDATER_FILE = "updater.bat"
         try:
-            self.version_label.setText("Подготовка к обновлению...")
+            self.version_label.setText("Скачивание новой версии...")
             QApplication.processEvents()
-            
-            current_exe = sys.executable if getattr(sys, 'frozen', False) else "Soft-K.exe"
-            current_dir = os.path.dirname(current_exe) if os.path.isabs(current_exe) else os.getcwd()
-            current_name = os.path.basename(current_exe)
-            temp_name = f"{os.path.splitext(current_name)[0]}_new.exe"
-            temp_path = os.path.join(current_dir, temp_name)
-            updater_path = os.path.join(current_dir, "update_installer.bat")
-            
-            self.version_label.setText("Загрузка обновления...")
-            QApplication.processEvents()
-            
-            response = requests.get(self.update_url, stream=True, timeout=30)
+            response = requests.get(self.update_url, stream=True)
             response.raise_for_status()
+            with open(TEMP_FILE, 'wb') as f:
+                for chunk in response.iter_content(1024):
+                    f.write(chunk)
             
-            total_size = int(response.headers.get('content-length', 0))
-            downloaded = 0
-            
-            with open(temp_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk)
-                        if total_size > 0:
-                            progress = int((downloaded / total_size) * 100)
-                            self.version_label.setText(f"Загрузка {progress}%...")
-                            QApplication.processEvents()
-            
-            self.version_label.setText("Подготовка установки...")
+            self.version_label.setText("Подготовка установщика...")
             QApplication.processEvents()
             
-            updater_script = f'''@echo off
+            updater_code = f"""@echo off
+chcp 65001 > nul
 title Обновление Soft-K
 echo.
-echo =============================================
-echo        ОБНОВЛЕНИЕ SOFT-K
-echo =============================================
+echo Пожалуйста, подождите, программа обновляется.
+echo Это окно закроется автоматически.
 echo.
-echo Завершение процесса...
-taskkill /f /im "{current_name}" >nul 2>&1
-taskkill /f /im "Soft-K.exe" >nul 2>&1
-timeout /t 3 /nobreak >nul
-echo.
-echo Установка новой версии...
-if exist "{current_exe}" (
-    del /f /q "{current_exe}" >nul 2>&1
-    timeout /t 1 /nobreak >nul
-)
-move /y "{temp_path}" "{current_exe}" >nul 2>&1
-if errorlevel 1 (
-    echo ОШИБКА: Не удалось заменить файл
-    pause
-    goto cleanup
-)
-echo.
-echo Запуск обновленной версии...
-timeout /t 1 /nobreak >nul
-start "" "{current_exe}"
-:cleanup
-timeout /t 2 /nobreak >nul
-del /f /q "%~f0" >nul 2>&1
-'''
+
+:: Ожидаем 2 секунды, чтобы основное приложение могло закрыться.
+timeout /t 2 /nobreak > nul
+
+:: Принудительно завершаем процесс, если он все еще активен.
+taskkill /f /im "{CURRENT_FILE}" > nul 2>&1
+
+:: Короткая пауза, чтобы система освободила файл.
+timeout /t 1 /nobreak > nul
+
+:: Перемещаем скачанный файл, заменяя старый.
+move /Y "{{TEMP_FILE}}" "{{CURRENT_FILE}}"
+
+:: Запускаем обновленное приложение.
+start "" "{{CURRENT_FILE}}"
+
+:: Самоудаление батника.
+del "%~f0"
+"""
+            with open(UPDATER_FILE, "w", encoding="utf-8") as f:
+                f.write(updater_code)
             
-            with open(updater_path, 'w', encoding='cp1251') as f:
-                f.write(updater_script)
-            
-            self.version_label.setText("Запуск установки...")
-            QApplication.processEvents()
-            
-            QTimer.singleShot(1000, lambda: [
-                QProcess.startDetached(updater_path),
-                QTimer.singleShot(500, QApplication.quit)
-            ])
-            
-        except requests.RequestException as e:
-            QMessageBox.critical(self, "Ошибка сети", f"Не удалось загрузить обновление:\n{str(e)}")
-            self.version_label.setText(f"Версия {self.CURRENT_VERSION}")
+            QProcess.startDetached(UPDATER_FILE, [])
+            QApplication.instance().quit()
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{str(e)}")
+            QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\\n{e}")
             self.version_label.setText(f"Версия {self.CURRENT_VERSION}")
     def check_update_status(self, *args, **kwargs):
         if asyncio.get_event_loop().is_running():

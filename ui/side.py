@@ -132,31 +132,25 @@ class DispatcherLogo(QWidget):
             self.version_label.setText("Установка...")
             QApplication.processEvents()
             updater_code = f"""@echo off
+chcp 65001 >nul
 title Обновление программы
-echo Завершение процесса...
-taskkill /f /im "{CURRENT_FILE}" >nul 2>&1
-timeout /t 3 >nul
-echo Обновление файлов...
-if exist "{TEMP_FILE}" (
-    del /f /q "{CURRENT_FILE}" 2>nul
-    ren "{TEMP_FILE}" "{CURRENT_FILE}"
-    if exist "{CURRENT_FILE}" (
-        echo Запуск новой версии...
-        start "" "{CURRENT_FILE}"
-    )
-) else (
-    echo Ошибка: временный файл не найден
-    pause
+:waitloop
+tasklist | find /i \"{CURRENT_FILE}\" >nul 2>&1
+if not errorlevel 1 (
+    timeout /t 1 >nul
+    goto waitloop
 )
-timeout /t 2 >nul
-del /f /q "%~f0" >nul 2>&1
+if exist \"{CURRENT_FILE}\" del /f /q \"{CURRENT_FILE}\"
+move /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\"
+start \"\" \"{CURRENT_FILE}\"
+del /f /q \"%~f0\"
 """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
             QProcess.startDetached(UPDATER_FILE)
-            QTimer.singleShot(1000, QApplication.quit)
+            QTimer.singleShot(500, QApplication.quit)
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Ошибка обновления: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
             self.version_label.setText(f"Версия {self.current_version}")
             self.version_label.setStyleSheet("""
                 QLabel {

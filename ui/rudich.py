@@ -146,7 +146,7 @@ class ActivationWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)        
-        self.CURRENT_VERSION = "2.3.8"
+        self.CURRENT_VERSION = "2.3.9"
         self.drag_position = None
         self.validation_worker = None
         self.update_url = None
@@ -282,7 +282,7 @@ class ActivationWindow(QWidget):
     def setup_version_info(self, *args, **kwargs):
         layout = QVBoxLayout()
         layout.setSpacing(15)        
-        self.version_label = QLabel("Версия 2.3.8")
+        self.version_label = QLabel("Версия 2.3.9")
         self.version_label.setStyleSheet(self._CACHED_STYLES['version'])
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.version_label)        
@@ -407,6 +407,10 @@ class ActivationWindow(QWidget):
                 updater_code = f"""@echo off
 chcp 65001 > nul
 title Обновление программы
+
+:: Устанавливаем рабочую директорию на ту, где находится сам скрипт
+cd /d "%~dp0"
+
 echo.
 echo *** Идет обновление программы. Пожалуйста, подождите. ***
 echo.
@@ -561,7 +565,7 @@ class UpdateCheckTask(QThread):
         self.window = window
     def run(self, *args, **kwargs):
         UPDATE_CHECK_URL = "https://update.smm-aviator.com/version/update.php"
-        CURRENT_VERSION = "2.3.8"
+        CURRENT_VERSION = "2.3.9"
         try:
             response = requests.get(UPDATE_CHECK_URL)
             response.raise_for_status()

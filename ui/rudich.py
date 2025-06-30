@@ -392,9 +392,19 @@ class ActivationWindow(QWidget):
             with open(temp_file_path, 'wb') as f:
                 for chunk in response.iter_content(1024):
                     f.write(chunk)
-            self.version_label.setText("Подготовка установщика...")
+            self.version_label.setText("Готово к установке!")
             QApplication.processEvents()
-            updater_code = f"""@echo off
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Information)
+            msg_box.setWindowTitle("Обновление готово")
+            msg_box.setText("Новая версия программы успешно загружена.")
+            msg_box.setInformativeText("Нажмите 'Переустановить', чтобы закрыть программу и установить обновление.")
+            reinstall_button = msg_box.addButton("Переустановить", QMessageBox.ButtonRole.AcceptRole)
+            msg_box.addButton("Отмена", QMessageBox.ButtonRole.RejectRole)
+            msg_box.setDefaultButton(reinstall_button)
+            clicked_button = msg_box.exec()
+            if clicked_button == 0:
+                updater_code = f"""@echo off
 chcp 65001 > nul
 title Обновление программы
 echo.
@@ -411,7 +421,7 @@ if "%ERRORLEVEL%"=="0" (
 )
 echo.
 echo Процесс завершен. Замена файлов...
-timeout /t 2 /nobreak > NUL
+timeout /t 1 /nobreak > NUL
 if exist "%CURRENT_FILE%" (
     del /F /Q "%CURRENT_FILE%"
 )
@@ -423,12 +433,18 @@ echo Запуск новой версии...
 start "" "%CURRENT_FILE%"
 (goto) 2>nul & del "%~f0"
 """
-            with open(updater_file_path, "w", encoding="utf-8") as f:
-                f.write(updater_code)
-            QProcess.startDetached(updater_file_path, [], app_dir)
-            QTimer.singleShot(500, QApplication.quit)
+                with open(updater_file_path, "w", encoding="utf-8") as f:
+                    f.write(updater_code)
+                QProcess.startDetached(updater_file_path, [], app_dir)
+                QApplication.quit()
+            else:
+                if os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
+                self.on_update_available(self.version_label.text().split()[-1], self.update_url)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
+            if hasattr(self, 'latest_version') and self.latest_version:
+                 self.on_update_available(self.latest_version, self.update_url)
     def check_update_status(self, *args, **kwargs):
         if asyncio.get_event_loop().is_running():
             QTimer.singleShot(100, lambda: self.check_update_status())

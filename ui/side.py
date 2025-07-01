@@ -116,6 +116,7 @@ class DispatcherLogo(QWidget):
         if self.update_url:
             self.download_update()
     def download_update(self, *args, **kwargs):
+        import os
         CURRENT_FILE = "Soft-K.exe"
         TEMP_FILE = "Soft-K_temp.exe"
         UPDATER_FILE = "updater.bat"
@@ -149,7 +150,8 @@ class DispatcherLogo(QWidget):
             """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            QProcess.startDetached(UPDATER_FILE)
+            bat_path = os.path.abspath(UPDATER_FILE)
+            QProcess.startDetached("cmd.exe", ["/c", bat_path])
             QTimer.singleShot(500, QApplication.quit)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")

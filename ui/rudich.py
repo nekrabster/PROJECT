@@ -380,8 +380,7 @@ class ActivationWindow(QWidget):
         TEMP_FILE = "Soft-K_temp.exe"
         UPDATER_FILE = "updater.bat"
         try:
-            self.version_label.setText("Скачивание обновления...")
-            QApplication.processEvents()
+            self.version_label.setText("Скачивание новой версии...")
             response = requests.get(self.update_url, stream=True)
             if response.status_code == 200:
                 with open(TEMP_FILE, 'wb') as f:
@@ -389,36 +388,27 @@ class ActivationWindow(QWidget):
                         f.write(chunk)
             else:
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
-            self.version_label.setText("Подготовка обновления...")
-            QApplication.processEvents()
-            updater_code = f"""@echo off
-chcp 65001 >nul
+            self.version_label.setText("Подготовка установщика...")
+            updater_code = r"""@echo off
+title Обновление программы
+
 :waitloop
-tasklist | findstr /i \"Soft-K.exe\" >nul 2>&1
+tasklist | find /i "Soft-K.exe" >nul 2>&1
 if not errorlevel 1 (
     timeout /t 1 >nul
     goto waitloop
 )
-move /Y \"Soft-K_temp.exe\" \"Soft-K.exe\"
-if exist \"Soft-K_temp.exe\" del \"Soft-K_temp.exe\"
-start \"\" \"Soft-K.exe\"
-del \"%~f0\"
+
+move /Y "Soft-K_temp.exe" "Soft-K.exe" >nul 2>&1
+start "" "Soft-K.exe"
+del "updater.bat"
 """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            self.show_restart_update_dialog()
+            QProcess.startDetached(UPDATER_FILE)
+            QTimer.singleShot(500, QApplication.quit)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
-    def show_restart_update_dialog(self):
-        msg = QMessageBox(self)
-        msg.setWindowTitle('Обновление')
-        msg.setText('Скачана новая версия. Перезапустить и обновить сейчас?')
-        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
-        ret = msg.exec()
-        if ret == QMessageBox.StandardButton.Yes:
-            QProcess.startDetached('updater.bat')
-            QApplication.quit()
     def check_update_status(self, *args, **kwargs):
         if asyncio.get_event_loop().is_running():
             QTimer.singleShot(100, lambda: self.check_update_status())

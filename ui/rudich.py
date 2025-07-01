@@ -376,6 +376,7 @@ class ActivationWindow(QWidget):
         self.version_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.version_label.mousePressEvent = self.download_update
     def download_update(self, event=None, *args, **kwargs):
+        import os
         CURRENT_FILE = "Soft-K.exe"
         TEMP_FILE = "Soft-K_temp.exe"
         UPDATER_FILE = "updater.bat"
@@ -407,7 +408,8 @@ class ActivationWindow(QWidget):
             """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            QProcess.startDetached(UPDATER_FILE)
+            bat_path = os.path.abspath(UPDATER_FILE)
+            QProcess.startDetached("cmd.exe", ["/c", bat_path])
             QTimer.singleShot(500, QApplication.quit)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")

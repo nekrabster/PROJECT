@@ -390,19 +390,21 @@ class ActivationWindow(QWidget):
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
             self.version_label.setText("Подготовка установщика...")
             updater_code = r"""@echo off
-title Обновление программы
+            title Обновление программы
 
-:waitloop
-tasklist | find /i "Soft-K.exe" >nul 2>&1
-if not errorlevel 1 (
-    timeout /t 1 >nul
-    goto waitloop
-)
+            :waitloop
+            tasklist | find /i "Soft-K.exe" >nul 2>&1
+            if not errorlevel 1 (
+                echo Ждем завершения Soft-K.exe...
+                taskkill /f /im "Soft-K.exe" >nul 2>&1
+                timeout /t 1 >nul
+                goto waitloop
+            )
 
-move /Y "Soft-K_temp.exe" "Soft-K.exe" >nul 2>&1
-start "" "Soft-K.exe"
-del "updater.bat"
-"""
+            move /Y "Soft-K_temp.exe" "Soft-K.exe" >nul 2>&1
+            start "" "Soft-K.exe"
+            del "%~f0"
+            """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
             QProcess.startDetached(UPDATER_FILE)

@@ -123,48 +123,49 @@ class DispatcherLogo(QWidget):
             self.version_label.setText("Скачивание...")
             QApplication.processEvents()
             response = requests.get(self.update_url, stream=True)
-            response.raise_for_status()
-            with open(TEMP_FILE, 'wb') as f:
-                for chunk in response.iter_content(1024):
-                    f.write(chunk)
-            
-            self.version_label.setText("Установка...")
+            if response.status_code == 200:
+                with open(TEMP_FILE, 'wb') as f:
+                    for chunk in response.iter_content(1024):
+                        f.write(chunk)
+            else:
+                raise Exception(f"Ошибка загрузки: статус {response.status_code}")
+            self.version_label.setText("Подготовка обновления...")
             QApplication.processEvents()
-
             updater_code = f"""@echo off
-chcp 65001 > nul
-title Обновление Soft-K
-echo.
-echo Пожалуйста, подождите, программа обновляется.
-echo Это окно закроется автоматически.
-echo.
+chcp 65001 >nul
+title Soft-K Update
 
-:: Ожидаем 2 секунды, чтобы основное приложение могло закрыться.
-timeout /t 2 /nobreak > nul
+echo Завершаем старую версию...
+taskkill /f /im \"{CURRENT_FILE}\" >nul 2>&1
+:waitloop
+if exist \"{CURRENT_FILE}\" (
+    timeout /t 1 >nul
+    goto waitloop
+)
 
-:: Принудительно завершаем процесс, если он все еще активен.
-taskkill /f /im "{CURRENT_FILE}" > nul 2>&1
+echo Заменяем файл...
+move /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\" >nul 2>&1
+if not exist \"{CURRENT_FILE}\" (
+    echo Ошибка замены файла!
+    pause
+    exit /b
+)
 
-:: Короткая пауза, чтобы система освободила файл.
-timeout /t 1 /nobreak > nul
+echo Запускаем новую версию...
+start \"\" \"{CURRENT_FILE}\"
 
-:: Перемещаем скачанный файл, заменяя старый.
-move /Y "{{TEMP_FILE}}" "{{CURRENT_FILE}}"
-
-:: Запускаем обновленное приложение.
-start "" "{{CURRENT_FILE}}"
-
-:: Самоудаление батника.
-del "%~f0"
+echo Удаляем временные файлы...
+del \"{TEMP_FILE}\" >nul 2>&1
+del \"%~f0\" >nul 2>&1
 """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            
-            QProcess.startDetached(UPDATER_FILE, [])
-            QApplication.instance().quit()
-
+            self.version_label.setText("Перезапуск...")
+            QApplication.processEvents()
+            QProcess.startDetached(UPDATER_FILE)
+            QTimer.singleShot(500, QApplication.quit)
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\\n{e}")
+            QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
             self.version_label.setText(f"Версия {self.current_version}")
             self.version_label.setStyleSheet("""
                 QLabel {

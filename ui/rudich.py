@@ -376,56 +376,79 @@ class ActivationWindow(QWidget):
         self.version_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.version_label.mousePressEvent = self.download_update
     def download_update(self, event=None, *args, **kwargs):
-        CURRENT_FILE = "Soft-K.exe"
-        TEMP_FILE = "Soft-K_temp.exe"
-        UPDATER_FILE = "updater.bat"
+        import os
+        import sys
+        CURRENT_FILE = os.path.basename(sys.executable) if getattr(sys, 'frozen', False) else "Soft-K.exe"
+        TEMP_FILE = "Soft-K_new.exe"
+        UPDATER_FILE = "updater.ps1"
         try:
-            self.version_label.setText("Скачивание новой версии...")
+            self.version_label.setText("Скачивание обновления...")
             QApplication.processEvents()
-            response = requests.get(self.update_url, stream=True)
+            response = requests.get(self.update_url, stream=True, timeout=30)
             if response.status_code == 200:
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded = 0
                 with open(TEMP_FILE, 'wb') as f:
-                    for chunk in response.iter_content(1024):
-                        f.write(chunk)
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total_size > 0:
+                                progress = int((downloaded / total_size) * 100)
+                                self.version_label.setText(f"Скачивание {progress}%...")
+                                QApplication.processEvents()
             else:
-                raise Exception(f"Ошибка загрузки: статус {response.status_code}")
-            self.version_label.setText("Подготовка обновления...")
+                raise Exception(f"Ошибка загрузки: HTTP {response.status_code}")
+            self.version_label.setText("Установка обновления...")
             QApplication.processEvents()
-            updater_code = f"""@echo off
-chcp 65001 >nul
-title Soft-K Update
+            updater_script = f'''
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.Application]::DoEvents()
 
-echo Завершаем старую версию...
-taskkill /f /im \"{CURRENT_FILE}\" >nul 2>&1
-:waitloop
-if exist \"{CURRENT_FILE}\" (
-    timeout /t 1 >nul
-    goto waitloop
-)
+$currentFile = "{CURRENT_FILE}"
+$tempFile = "{TEMP_FILE}"
+$maxAttempts = 30
 
-echo Заменяем файл...
-move /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\" >nul 2>&1
-if not exist \"{CURRENT_FILE}\" (
-    echo Ошибка замены файла!
-    pause
-    exit /b
-)
+Write-Host "Ожидание завершения процесса..."
+for ($i = 0; $i -lt $maxAttempts; $i++) {{
+    $process = Get-Process -Name "Soft-K" -ErrorAction SilentlyContinue
+    if (-not $process) {{ break }}
+    Start-Sleep -Milliseconds 500
+}}
 
-echo Запускаем новую версию...
-start \"\" \"{CURRENT_FILE}\"
+Write-Host "Замена файла..."
+try {{
+    if (Test-Path $currentFile) {{
+        Remove-Item $currentFile -Force
+    }}
+    if (Test-Path $tempFile) {{
+        Rename-Item $tempFile $currentFile -Force
+        Write-Host "Обновление завершено успешно"
+        Start-Process $currentFile
+    }} else {{
+        Write-Host "Ошибка: временный файл не найден"
+        exit 1
+    }}
+}} catch {{
+    Write-Host "Ошибка при замене файла: $_"
+    exit 1
+}}
 
-echo Удаляем временные файлы...
-del \"{TEMP_FILE}\" >nul 2>&1
-del \"%~f0\" >nul 2>&1
-"""
+Start-Sleep 2
+Remove-Item $MyInvocation.MyCommand.Path -Force
+'''
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
-                f.write(updater_code)
+                f.write(updater_script)
             self.version_label.setText("Перезапуск...")
             QApplication.processEvents()
-            QProcess.startDetached(UPDATER_FILE)
-            QTimer.singleShot(500, QApplication.quit)
+            import subprocess
+            subprocess.Popen(['powershell.exe', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', UPDATER_FILE], 
+                           creationflags=subprocess.CREATE_NO_WINDOW)
+            QTimer.singleShot(1000, QApplication.quit)
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
+            QMessageBox.critical(self, "Ошибка обновления", f"Не удалось обновить программу:\n{str(e)}")
+            self.version_label.setText(f"Версия {self.CURRENT_VERSION}")
+            self.version_label.setStyleSheet(self._CACHED_STYLES['version'])
     def check_update_status(self, *args, **kwargs):
         if asyncio.get_event_loop().is_running():
             QTimer.singleShot(100, lambda: self.check_update_status())

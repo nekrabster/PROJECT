@@ -118,7 +118,7 @@ class DispatcherLogo(QWidget):
     def download_update(self, *args, **kwargs):
         CURRENT_FILE = "Soft-K.exe"
         TEMP_FILE = "Soft-K_temp.exe"
-        UPDATER_EXE = "updater.exe"
+        UPDATER_FILE = "updater.bat"
         try:
             self.version_label.setText("Скачивание...")
             QApplication.processEvents()
@@ -131,19 +131,22 @@ class DispatcherLogo(QWidget):
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
             self.version_label.setText("Установка...")
             QApplication.processEvents()
-            QProcess.startDetached(UPDATER_EXE, [CURRENT_FILE, TEMP_FILE])
-            QApplication.quit()
+            updater_code = f"""@echo off\ntitle Обновление программы\n\n:: Завершаем старую версию, если она еще запущена\ntaskkill /f /im "{CURRENT_FILE}" >nul 2>&1\n\n:: Показываем сообщение о процессе обновления\necho Пожалуйста подождите - идет обновление...\necho.\n\n:: Короткая пауза для завершения процесса\ntimeout /t 1 >nul\n\n:: Заменяем exe\nmove /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1\n\n:: Сразу запускаем новую версию\nstart "" "{CURRENT_FILE}"\n\n:: Удаляем себя\ndel "%~f0"\n"""
+            with open(UPDATER_FILE, "w", encoding="utf-8") as f:
+                f.write(updater_code)
+            self.show_update_notification()  # Показ уведомления об успешном обновлении
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
-            self.version_label.setText(f"Версия {self.current_version}")
-            self.version_label.setStyleSheet("""
-                QLabel {
-                    color: rgba(255, 255, 255, 0.6);
-                    font-size: 11px;
-                    padding: 5px;
-                    background: transparent;
-                }
-            """)
+    def show_update_notification(self):
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("Обновление установлено")
+        msg_box.setText("Обновление успешно установлено. Перезапустить приложение?")
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.Yes)
+        result = msg_box.exec()
+        if result == QMessageBox.Yes:
+            QProcess.startDetached("updater.bat")
+            QApplication.quit()
 class SideBar:
     def __init__(self, main_window):
         self.main_window = main_window
@@ -252,7 +255,6 @@ class SideBar:
                 ("Автоответы ботов", "session", create_svg_icon(svg_icons['chat'], icon_color)),
                 ("Автоответы ботов (beta)", "sessionbeta", create_svg_icon(svg_icons['chat'], icon_color)),
                 ("Рассылка ботов", "rass", create_svg_icon(svg_icons['broadcast'], icon_color)),
-                ("Рассылка ботов (beta)", "rassbeta", create_svg_icon(svg_icons['broadcast'], icon_color)),
             ])
         ]
         single_buttons = [

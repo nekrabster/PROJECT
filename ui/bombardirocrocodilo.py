@@ -24,6 +24,7 @@ from ui.components import ComponentsWindow
 from ui.session import BotWindow
 from ui.sessionbeta import BotWindowBeta
 from ui.rass import RassWindow
+from ui.rassbeta import RassWindow
 from ui.check import CheckWindow
 from ui.newtoken import NewTokenWindow
 from ui.informatika import InfoWindow
@@ -350,6 +351,7 @@ class MainWindow(QWidget):
             "session": BotWindow(self),
             "sessionbeta": BotWindowBeta(self),
             "rass": RassWindow(self.session_folder, self),
+            "rassbeta": RassWindow(self.session_folder, self),
             "check": CheckWindow(self),
             "newtoken": NewTokenWindow(self.session_folder, self),
             "session_manager": SessionManagerWindow(self.session_folder, parent=self),

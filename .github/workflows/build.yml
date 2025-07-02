@@ -122,7 +122,7 @@ jobs:
             --include-module=ui.svg_utils `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
-            --windows-product-version="2.3.6" `
+            --windows-product-version="2.4.0" `
             --report=build-report.txt
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
@@ -138,3 +138,39 @@ jobs:
           path: |
             build/
             *.log
+
+      - name: 🛠 Build updater.exe with Nuitka
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: "utf-8"
+          PYTHONLEGACYWINDOWSSTDIO: "utf-8"
+        run: |
+          $env:CC = "clang-cl"
+          $env:CXX = "clang-cl"
+          nuitka `
+            ui/updater.py `
+            --standalone `
+            --onefile `
+            --remove-output `
+            --output-dir=dist `
+            --output-filename=updater `
+            --windows-icon-from-ico=icon.ico `
+            --assume-yes-for-downloads `
+            --disable-console `
+            --clang `
+            --lto=yes `
+            --jobs=2 `
+            --no-pyi-file `
+            --python-flag=no_asserts `
+            --python-flag=no_docstrings `
+            --python-flag=no_site `
+            --cf-protection=none `
+            --disable-dll-dependency-cache `
+            --disable-ccache `
+            --msvc=latest `
+            --include-module=psutil
+      - name: ☁️ Upload updater.exe as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater.exe
+          path: dist/updater.exe

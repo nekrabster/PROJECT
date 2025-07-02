@@ -378,7 +378,7 @@ class ActivationWindow(QWidget):
     def download_update(self, event=None, *args, **kwargs):
         CURRENT_FILE = "Soft-K.exe"
         TEMP_FILE = "Soft-K_temp.exe"
-        UPDATER_FILE = "updater.bat"
+        UPDATER_EXE = "updater.exe"
         try:
             self.version_label.setText("Скачивание новой версии...")
             response = requests.get(self.update_url, stream=True)
@@ -388,32 +388,8 @@ class ActivationWindow(QWidget):
                         f.write(chunk)
             else:
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
-            self.version_label.setText("Подготовка установщика...")
-            updater_code = f"""@echo off
-title Обновление программы
-
-:: Завершаем старую версию, если она еще запущена
-taskkill /f /im "{CURRENT_FILE}" >nul 2>&1
-
-:: Показываем сообщение о процессе обновления
-echo Пожалуйста подождите - идет обновление...
-echo.
-
-:: Короткая пауза для завершения процесса
-timeout /t 1 >nul
-
-:: Заменяем exe
-move /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1
-
-:: Сразу запускаем новую версию
-start "" "{CURRENT_FILE}"
-
-:: Удаляем себя
-del "%~f0"
-"""
-            with open(UPDATER_FILE, "w", encoding="utf-8") as f:
-                f.write(updater_code)
-            QProcess.startDetached("cmd.exe", ["/c", UPDATER_FILE])
+            self.version_label.setText("Установка обновления...")
+            QProcess.startDetached(UPDATER_EXE, [CURRENT_FILE, TEMP_FILE])
             QApplication.quit()
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")

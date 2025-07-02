@@ -116,10 +116,9 @@ class DispatcherLogo(QWidget):
         if self.update_url:
             self.download_update()
     def download_update(self, *args, **kwargs):
-        import os
-        CURRENT_FILE = os.path.abspath("Soft-K.exe")
-        TEMP_FILE = os.path.abspath("Soft-K_temp.exe")
-        UPDATER_FILE = os.path.abspath("updater.bat")
+        CURRENT_FILE = "Soft-K.exe"
+        TEMP_FILE = "Soft-K_temp.exe"
+        UPDATER_FILE = "updater.bat"
         try:
             self.version_label.setText("Скачивание...")
             QApplication.processEvents()
@@ -135,27 +134,29 @@ class DispatcherLogo(QWidget):
             updater_code = f"""@echo off
 title Обновление программы
 
-:: Ждем завершения процесса
-:waitloop
-tasklist | find /i \"Soft-K.exe\" >nul 2>&1
-if not errorlevel 1 (
-    timeout /t 1 >nul
-    goto waitloop
-)
+:: Завершаем старую версию, если она еще запущена
+taskkill /f /im "{CURRENT_FILE}" >nul 2>&1
+
+:: Показываем сообщение о процессе обновления
+echo Пожалуйста подождите - идет обновление...
+echo.
+
+:: Короткая пауза для завершения процесса
+timeout /t 1 >nul
 
 :: Заменяем exe
-move /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\" >nul 2>&1
+move /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1
 
-:: Запускаем новую версию
-start \"\" \"{CURRENT_FILE}\"
+:: Сразу запускаем новую версию
+start "" "{CURRENT_FILE}"
 
 :: Удаляем себя
-del \"%~f0\"
+del "%~f0"
 """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            QProcess.startDetached(UPDATER_FILE)
-            QTimer.singleShot(500, QApplication.quit)
+            QProcess.startDetached("cmd.exe", ["/c", UPDATER_FILE])
+            QApplication.quit()
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
             self.version_label.setText(f"Версия {self.current_version}")

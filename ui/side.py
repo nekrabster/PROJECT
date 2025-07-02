@@ -252,6 +252,7 @@ class SideBar:
                 ("Автоответы ботов", "session", create_svg_icon(svg_icons['chat'], icon_color)),
                 ("Автоответы ботов (beta)", "sessionbeta", create_svg_icon(svg_icons['chat'], icon_color)),
                 ("Рассылка ботов", "rass", create_svg_icon(svg_icons['broadcast'], icon_color)),
+                ("Рассылка ботов (beta)", "rassbeta", create_svg_icon(svg_icons['broadcast'], icon_color)),
             ])
         ]
         single_buttons = [

@@ -117,9 +117,9 @@ class DispatcherLogo(QWidget):
             self.download_update()
     def download_update(self, *args, **kwargs):
         import os
-        CURRENT_FILE = "Soft-K.exe"
-        TEMP_FILE = "Soft-K_temp.exe"
-        UPDATER_FILE = "updater.bat"
+        CURRENT_FILE = os.path.abspath("Soft-K.exe")
+        TEMP_FILE = os.path.abspath("Soft-K_temp.exe")
+        UPDATER_FILE = os.path.abspath("updater.bat")
         try:
             self.version_label.setText("Скачивание...")
             QApplication.processEvents()
@@ -132,26 +132,29 @@ class DispatcherLogo(QWidget):
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
             self.version_label.setText("Установка...")
             QApplication.processEvents()
-            updater_code = r"""@echo off
-            title Обновление программы
+            updater_code = f"""@echo off
+title Обновление программы
 
-            :waitloop
-            tasklist | find /i "Soft-K.exe" >nul 2>&1
-            if not errorlevel 1 (
-                echo Ждем завершения Soft-K.exe...
-                taskkill /f /im "Soft-K.exe" >nul 2>&1
-                timeout /t 1 >nul
-                goto waitloop
-            )
+:: Ждем завершения процесса
+:waitloop
+tasklist | find /i \"Soft-K.exe\" >nul 2>&1
+if not errorlevel 1 (
+    timeout /t 1 >nul
+    goto waitloop
+)
 
-            move /Y "Soft-K_temp.exe" "Soft-K.exe" >nul 2>&1
-            start "" "Soft-K.exe"
-            del "%~f0"
-            """
+:: Заменяем exe
+move /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\" >nul 2>&1
+
+:: Запускаем новую версию
+start \"\" \"{CURRENT_FILE}\"
+
+:: Удаляем себя
+del \"%~f0\"
+"""
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            bat_path = os.path.abspath(UPDATER_FILE)
-            QProcess.startDetached("cmd.exe", ["/c", bat_path])
+            QProcess.startDetached(UPDATER_FILE)
             QTimer.singleShot(500, QApplication.quit)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")

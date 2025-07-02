@@ -375,13 +375,12 @@ class ActivationWindow(QWidget):
         """)
         self.version_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.version_label.mousePressEvent = self.download_update
-    def download_update(self, *args, **kwargs):
+    def download_update(self, event=None, *args, **kwargs):
         CURRENT_FILE = "Soft-K.exe"
         TEMP_FILE = "Soft-K_temp.exe"
         UPDATER_FILE = "updater.bat"
         try:
-            self.version_label.setText("Скачивание...")
-            QApplication.processEvents()
+            self.version_label.setText("Скачивание новой версии...")
             response = requests.get(self.update_url, stream=True)
             if response.status_code == 200:
                 with open(TEMP_FILE, 'wb') as f:
@@ -389,24 +388,51 @@ class ActivationWindow(QWidget):
                         f.write(chunk)
             else:
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
-            self.version_label.setText("Установка...")
-            QApplication.processEvents()
-            updater_code = f"""@echo off\ntitle Обновление программы\n\n:: Завершаем старую версию, если она еще запущена\ntaskkill /f /im "{CURRENT_FILE}" >nul 2>&1\n\n:: Показываем сообщение о процессе обновления\necho Пожалуйста подождите - идет обновление...\necho.\n\n:: Короткая пауза для завершения процесса\ntimeout /t 1 >nul\n\n:: Заменяем exe\nmove /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1\n\n:: Сразу запускаем новую версию\nstart "" "{CURRENT_FILE}"\n\n:: Удаляем себя\ndel "%~f0"\n"""
+            self.version_label.setText("Подготовка установщика...")
+            updater_code = f"""@echo off
+title Обновление программы
+
+:: Завершаем старую версию, если она еще запущена
+taskkill /f /im "{CURRENT_FILE}" >nul 2>&1
+
+:: Показываем сообщение о процессе обновления
+echo Пожалуйста подождите - идет обновление...
+echo.
+
+:: Короткая пауза для завершения процесса
+timeout /t 1 >nul
+
+:: Заменяем exe
+move /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1
+
+:: Сразу запускаем новую версию
+start "" "{CURRENT_FILE}"
+
+:: Удаляем себя
+del "%~f0"
+"""
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            self.show_update_notification()  # Показ уведомления об успешном обновлении
+            reply = QMessageBox.question(self, "Обновление установлено", "Обновление успешно установлено! Перезапустить программу сейчас?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                self.restart_with_updater()
+            else:
+                self.version_label.setText(f"Версия {self.current_version}")
+                self.version_label.setStyleSheet("""
+                    QLabel {
+                        color: rgba(255, 255, 255, 0.6);
+                        font-size: 11px;
+                        padding: 5px;
+                        background: transparent;
+                    }
+                """)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
-    def show_update_notification(self):
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("Обновление установлено")
-        msg_box.setText("Обновление успешно установлено. Перезапустить приложение?")
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.Yes)
-        result = msg_box.exec()
-        if result == QMessageBox.Yes:
-            QProcess.startDetached("updater.bat")
-            QApplication.quit()
+    def restart_with_updater(self):
+        UPDATER_FILE = "updater.bat"
+        QProcess.startDetached(UPDATER_FILE)
+        QApplication.quit()
+
     def check_update_status(self, *args, **kwargs):
         if asyncio.get_event_loop().is_running():
             QTimer.singleShot(100, lambda: self.check_update_status())

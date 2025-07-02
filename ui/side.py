@@ -141,10 +141,10 @@ class DispatcherLogo(QWidget):
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("Обновление установлено")
         msg_box.setText("Обновление успешно установлено. Перезапустить приложение?")
-        msg_box.setStandardButtons(QMessageBox.Standard.Yes | QMessageBox.Standard.No)
-        msg_box.setDefaultButton(QMessageBox.Standard.Yes)
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.Yes)
         result = msg_box.exec()
-        if result == QMessageBox.Standard.Yes:
+        if result == QMessageBox.Yes:
             QProcess.startDetached("updater.bat")
             QApplication.quit()
 class SideBar:

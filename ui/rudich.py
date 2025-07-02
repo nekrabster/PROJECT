@@ -429,8 +429,10 @@ del "%~f0"
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
     def restart_with_updater(self):
+        import os
         UPDATER_FILE = "updater.bat"
-        QProcess.startDetached(UPDATER_FILE)
+        updater_path = os.path.abspath(UPDATER_FILE)
+        QProcess.startDetached("cmd.exe", ["/c", updater_path], os.path.dirname(updater_path))
         QApplication.quit()
 
     def check_update_status(self, *args, **kwargs):

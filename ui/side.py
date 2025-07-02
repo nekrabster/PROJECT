@@ -46,6 +46,11 @@ class DispatcherLogo(QWidget):
         self.update_checker = None
         self.setup_ui()
         self.setup_update_timer()
+    def restart_with_updater(self):
+        UPDATER_FILE = "updater.bat"
+        QProcess.startDetached(UPDATER_FILE)
+        QApplication.quit()
+
     def setup_update_timer(self, *args, **kwargs):
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.check_for_update)
@@ -131,22 +136,54 @@ class DispatcherLogo(QWidget):
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
             self.version_label.setText("Установка...")
             QApplication.processEvents()
-            updater_code = f"""@echo off\ntitle Обновление программы\n\n:: Завершаем старую версию, если она еще запущена\ntaskkill /f /im "{CURRENT_FILE}" >nul 2>&1\n\n:: Показываем сообщение о процессе обновления\necho Пожалуйста подождите - идет обновление...\necho.\n\n:: Короткая пауза для завершения процесса\ntimeout /t 1 >nul\n\n:: Заменяем exe\nmove /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1\n\n:: Сразу запускаем новую версию\nstart "" "{CURRENT_FILE}"\n\n:: Удаляем себя\ndel "%~f0"\n"""
+            updater_code = f"""@echo off
+title Обновление программы
+
+:: Завершаем старую версию, если она еще запущена
+taskkill /f /im "{CURRENT_FILE}" >nul 2>&1
+
+:: Показываем сообщение о процессе обновления
+echo Пожалуйста подождите - идет обновление...
+echo.
+
+:: Короткая пауза для завершения процесса
+timeout /t 1 >nul
+
+:: Заменяем exe
+move /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1
+
+:: Сразу запускаем новую версию
+start "" "{CURRENT_FILE}"
+
+:: Удаляем себя
+del "%~f0"
+"""
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            self.show_update_notification()  # Показ уведомления об успешном обновлении
+            reply = QMessageBox.question(self, "Обновление установлено", "Обновление успешно установлено! Перезапустить программу сейчас?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                self.restart_with_updater()
+            else:
+                self.version_label.setText(f"Версия {self.current_version}")
+                self.version_label.setStyleSheet("""
+                    QLabel {
+                        color: rgba(255, 255, 255, 0.6);
+                        font-size: 11px;
+                        padding: 5px;
+                        background: transparent;
+                    }
+                """)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
-    def show_update_notification(self):
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("Обновление установлено")
-        msg_box.setText("Обновление успешно установлено. Перезапустить приложение?")
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.Yes)
-        result = msg_box.exec()
-        if result == QMessageBox.Yes:
-            QProcess.startDetached("updater.bat")
-            QApplication.quit()
+            self.version_label.setText(f"Версия {self.current_version}")
+            self.version_label.setStyleSheet("""
+                QLabel {
+                    color: rgba(255, 255, 255, 0.6);
+                    font-size: 11px;
+                    padding: 5px;
+                    background: transparent;
+                }
+            """)
 class SideBar:
     def __init__(self, main_window):
         self.main_window = main_window

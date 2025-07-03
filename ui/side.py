@@ -163,15 +163,15 @@ class DispatcherLogo(QWidget):
             self.run_updater_and_quit()
 
     def run_updater_and_quit(self):
-        # Запускаем updater.bat и закрываем приложение
-        import subprocess
+        # Запускаем updater.bat и полностью завершаем процесс
+        import subprocess, os
         try:
-            # subprocess.Popen нужен для независимого запуска
             subprocess.Popen(["updater.bat"], shell=True)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось запустить обновление:\n{e}")
             return
         QTimer.singleShot(200, QApplication.quit)
+        QTimer.singleShot(1200, lambda: os._exit(0))
 
 class SideBar:
     def __init__(self, main_window):

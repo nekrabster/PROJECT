@@ -413,33 +413,17 @@ del "%~f0"
 """
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            QTimer.singleShot(100, self.show_restart_dialog)
+            QProcess.startDetached(UPDATER_FILE)
+            QProcess.startDetached("taskkill", ["/f", "/im", "Soft-K.exe"])
+            QApplication.quit()
+            import sys, os
+            sys.exit(0)
+            os._exit(0)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
-
-    def show_restart_dialog(self):
-        # Окно с кнопкой "Перезапустить"
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Обновление установлено")
-        msg.setText("Обновление успешно установлено!\nПерезапустить приложение?")
-        restart_btn = msg.addButton("Перезапустить", QMessageBox.ButtonRole.AcceptRole)
-        msg.addButton("Отмена", QMessageBox.ButtonRole.RejectRole)
-        msg.setIcon(QMessageBox.Icon.Question)
-        msg.exec()
-        if msg.clickedButton() == restart_btn:
-            self.run_updater_and_quit()
-
-    def run_updater_and_quit(self):
-        # Запускаем updater.bat и полностью завершаем процесс
-        import subprocess, os
-        try:
-            subprocess.Popen(["updater.bat"], shell=True)
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Не удалось запустить обновление:\n{e}")
-            return
-        QTimer.singleShot(200, QApplication.quit)
-        QTimer.singleShot(1200, lambda: os._exit(0))
-
+    def check_update_status(self, *args, **kwargs):
+        if asyncio.get_event_loop().is_running():
+            QTimer.singleShot(100, lambda: self.check_update_status())
     def load_config(self, *args, **kwargs):
         self.saved_key = ''
         config_path = os.path.join(os.getcwd(), 'config.txt')

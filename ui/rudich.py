@@ -430,8 +430,16 @@ del "%~f0"
             self.run_updater_and_quit()
 
     def run_updater_and_quit(self):
-        # Запускаем updater.bat и закрываем приложение
-        import subprocess
+        # Запускаем updater.bat и полностью завершаем процесс
+        import subprocess, os
+        try:
+            subprocess.Popen(["updater.bat"], shell=True)
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось запустить обновление:\n{e}")
+            return
+        QTimer.singleShot(200, QApplication.quit)
+        QTimer.singleShot(1200, lambda: os._exit(0))
+
     def load_config(self, *args, **kwargs):
         self.saved_key = ''
         config_path = os.path.join(os.getcwd(), 'config.txt')

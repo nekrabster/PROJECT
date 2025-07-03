@@ -116,7 +116,6 @@ class DispatcherLogo(QWidget):
         if self.update_url:
             self.download_update()
     def download_update(self, *args, **kwargs):
-        # Пути к файлам
         CURRENT_FILE = "Soft-K.exe"
         TEMP_FILE = "Soft-K_temp.exe"
         UPDATER_FILE = "updater.bat"
@@ -132,12 +131,36 @@ class DispatcherLogo(QWidget):
                 raise Exception(f"Ошибка загрузки: статус {response.status_code}")
             self.version_label.setText("Установка...")
             QApplication.processEvents()
-            # Создаём батник для обновления
-            updater_code = f"""@echo off\ntitle Обновление программы\n\n:: Завершаем старую версию, если она еще запущена\ntaskkill /f /im \"{CURRENT_FILE}\" >nul 2>&1\n\n:: Показываем сообщение о процессе обновления\necho Пожалуйста подождите - идет обновление...\necho.\n\n:: Короткая пауза для завершения процесса\ntimeout /t 1 >nul\n\n:: Заменяем exe\nmove /Y \"{TEMP_FILE}\" \"{CURRENT_FILE}\" >nul 2>&1\n\n:: Сразу запускаем новую версию\nstart \"\" \"{CURRENT_FILE}\"\n\n:: Удаляем себя\ndel \"%~f0\"\n"""
+            updater_code = f"""@echo off
+title Обновление программы
+
+:: Завершаем старую версию, если она еще запущена
+taskkill /f /im "{CURRENT_FILE}" >nul 2>&1
+
+:: Показываем сообщение о процессе обновления
+echo Пожалуйста подождите - идет обновление...
+echo.
+
+:: Короткая пауза для завершения процесса
+timeout /t 1 >nul
+
+:: Заменяем exe
+move /Y "{TEMP_FILE}" "{CURRENT_FILE}" >nul 2>&1
+
+:: Сразу запускаем новую версию
+start "" "{CURRENT_FILE}"
+
+:: Удаляем себя
+del "%~f0"
+"""
             with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            # Показываем окно с кнопкой "Перезапустить"
-            self.show_restart_dialog()
+            QProcess.startDetached(UPDATER_FILE)
+            QProcess.startDetached("taskkill", ["/f", "/im", "Soft-K.exe"])
+            QApplication.quit()
+            import sys, os
+            sys.exit(0)
+            os._exit(0)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
             self.version_label.setText(f"Версия {self.current_version}")
@@ -149,30 +172,6 @@ class DispatcherLogo(QWidget):
                     background: transparent;
                 }
             """)
-
-    def show_restart_dialog(self):
-        # Окно с кнопкой "Перезапустить"
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Обновление установлено")
-        msg.setText("Обновление успешно установлено!\nПерезапустить приложение?")
-        restart_btn = msg.addButton("Перезапустить", QMessageBox.ButtonRole.AcceptRole)
-        msg.addButton("Отмена", QMessageBox.ButtonRole.RejectRole)
-        msg.setIcon(QMessageBox.Icon.Question)
-        msg.exec()
-        if msg.clickedButton() == restart_btn:
-            self.run_updater_and_quit()
-
-    def run_updater_and_quit(self):
-        # Запускаем updater.bat и полностью завершаем процесс
-        import subprocess, os
-        try:
-            subprocess.Popen(["updater.bat"], shell=True)
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Не удалось запустить обновление:\n{e}")
-            return
-        QTimer.singleShot(200, QApplication.quit)
-        QTimer.singleShot(1200, lambda: os._exit(0))
-
 class SideBar:
     def __init__(self, main_window):
         self.main_window = main_window

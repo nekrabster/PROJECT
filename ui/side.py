@@ -160,7 +160,7 @@ start "" "{CURRENT_FILE}"
 :: Удаляем себя
 del "%~f0"
 """
-            with open(UPDATER_FILE, "w", encoding="utf-8") as f:
+            with open(UPDATER_FILE, "w", encoding="cp1251") as f:
                 f.write(updater_code)
             reply = QMessageBox.question(self, "Обновление установлено", "Обновление успешно установлено! Перезапустить программу сейчас?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.Yes:

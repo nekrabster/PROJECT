@@ -411,33 +411,27 @@ start "" "{CURRENT_FILE}"
 :: Удаляем себя
 del "%~f0"
 """
-            with open(UPDATER_FILE, "w", encoding="cp1251") as f:
+            with open(UPDATER_FILE, "w", encoding="utf-8") as f:
                 f.write(updater_code)
-            reply = QMessageBox.question(self, "Обновление установлено", "Обновление успешно установлено! Перезапустить программу сейчас?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-            if reply == QMessageBox.StandardButton.Yes:
-                self.restart_with_updater()
-            else:
-                self.version_label.setText(f"Версия {self.current_version}")
-                self.version_label.setStyleSheet("""
-                    QLabel {
-                        color: rgba(255, 255, 255, 0.6);
-                        font-size: 11px;
-                        padding: 5px;
-                        background: transparent;
-                    }
-                """)
+            QTimer.singleShot(100, self.show_restart_dialog)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка при обновлении:\n{e}")
-    def restart_with_updater(self):
-        import os
-        UPDATER_FILE = "updater.bat"
-        updater_path = os.path.abspath(UPDATER_FILE)
-        QProcess.startDetached("cmd.exe", ["/c", updater_path], os.path.dirname(updater_path))
-        QApplication.quit()
 
-    def check_update_status(self, *args, **kwargs):
-        if asyncio.get_event_loop().is_running():
-            QTimer.singleShot(100, lambda: self.check_update_status())
+    def show_restart_dialog(self):
+        # Окно с кнопкой "Перезапустить"
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Обновление установлено")
+        msg.setText("Обновление успешно установлено!\nПерезапустить приложение?")
+        restart_btn = msg.addButton("Перезапустить", QMessageBox.ButtonRole.AcceptRole)
+        msg.addButton("Отмена", QMessageBox.ButtonRole.RejectRole)
+        msg.setIcon(QMessageBox.Icon.Question)
+        msg.exec()
+        if msg.clickedButton() == restart_btn:
+            self.run_updater_and_quit()
+
+    def run_updater_and_quit(self):
+        # Запускаем updater.bat и закрываем приложение
+        import subprocess
     def load_config(self, *args, **kwargs):
         self.saved_key = ''
         config_path = os.path.join(os.getcwd(), 'config.txt')

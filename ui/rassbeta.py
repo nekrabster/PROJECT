@@ -1,5 +1,4 @@
-import os, asyncio, json, hashlib, platform, random, string
-import aiohttp
+import os, asyncio, random, string
 from PyQt6.QtCore import Qt, QTimer, QTime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTextEdit, QFileDialog,
@@ -75,82 +74,6 @@ class BotWorker(BaseThread):
             except Exception:
                 pass
             self.emit_log(f"{self.bot_name}: завершено с ошибкой")
-class ServerApiClient:
-    def __init__(self, server_url=None):
-        if server_url is None:
-            server_url = self.get_server_url()
-        self.server_url = server_url
-        self.ssh_key = self.get_ssh_key()
-        self.activation_key = self.get_activation_key()
-    def get_server_url(self, *args):
-        try:
-            with open("server_port.txt", 'r') as f:
-                content = f.read().strip()
-                if content.startswith('http'):
-                    return content
-                else:
-                    port = content
-                    return f"http://localhost:{port}"
-        except Exception:
-            return "http://127.0.0.1:8000"
-    def get_ssh_key(self, *args):
-        try:
-            ssh_key_file = os.path.expanduser("~/.ssh/id_rsa.pub")
-            if os.path.exists(ssh_key_file):
-                with open(ssh_key_file, 'r') as f:
-                    return f.read().strip()
-        except Exception:
-            pass
-        return platform.node()
-    def get_activation_key(self, *args):
-        try:
-            config_path = "config.txt"
-            if os.path.exists(config_path):
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        if line.strip().startswith('key='):
-                            return line.strip().split('=', 1)[1]
-        except Exception:
-            pass
-        return "default_key"
-    async def start_rass(self, tokens, users, text, percent, auto, auto_time):
-        data = {
-            "auth": {"ssh_key": self.ssh_key, "activation_key": self.activation_key},
-            "tokens": tokens,
-            "users": users,
-            "text": text,
-            "percent": percent,
-            "auto": auto,
-            "auto_time": auto_time
-        }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{self.server_url}/start_rass", json=data) as response:
-                return await response.json()
-    async def stop_rass(self):
-        data = {"auth": {"ssh_key": self.ssh_key, "activation_key": self.activation_key}}
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{self.server_url}/stop_rass", json=data) as response:
-                return await response.json()
-    async def get_status(self):
-        async with aiohttp.ClientSession() as session:
-            url = f"{self.server_url}/status/{self.ssh_key}/{self.activation_key}"
-            async with session.get(url) as response:
-                return await response.json()
-    async def get_users(self):
-        async with aiohttp.ClientSession() as session:
-            url = f"{self.server_url}/users/{self.ssh_key}/{self.activation_key}"
-            async with session.get(url) as response:
-                return await response.json()
-    async def set_auto(self, auto_time):
-        data = {"auth": {"ssh_key": self.ssh_key, "activation_key": self.activation_key}, "auto_time": auto_time}
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{self.server_url}/set_auto", json=data) as response:
-                return await response.json()
-    async def unset_auto(self):
-        data = {"auth": {"ssh_key": self.ssh_key, "activation_key": self.activation_key}}
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{self.server_url}/unset_auto", json=data) as response:
-                return await response.json()
 class RassWindow(QWidget, ThreadStopMixin):
     def __init__(self, session_folder, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -233,12 +156,16 @@ class RassWindow(QWidget, ThreadStopMixin):
         self.total_processed = 0
         self.selected_tokens = []
         self.token_usernames = {}
-        self.api_client = ServerApiClient()
-        self.status_timer = QTimer(self)
-        self.status_timer.timeout.connect(self.check_server_status)
-        self.status_timer.start(1000)
-        self.is_broadcasting = False
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.process_tasks)
+        self.timer.start(100)
+        self.auto_send_timer = QTimer(self)
+        self.auto_send_timer.timeout.connect(self.check_auto_send)
+        self.auto_send_timer.start(30 * 1000)
         self.last_auto_send_date = None
+        self.is_broadcasting = False
+        self.report_shown = False
+        self.completed_threads = set()
     def on_bots_win_tokens_updated(self, tokens, *args):
         self.selected_tokens = tokens
         self.tokens = {t: self.bot_token_window.token_usernames.get(t, t) for t in tokens}
@@ -324,7 +251,30 @@ class RassWindow(QWidget, ThreadStopMixin):
             return
         self.load_users_from_folder(folder)
         self.session_folder = folder
+    def check_auto_send(self, *args):
+        if not self.auto_send_checkbox.isChecked():
+            return
+        if self.is_broadcasting:
+            return
+        auto_time = self.time_edit.time()
+        now = QTime.currentTime()
+        from datetime import date
+        today = date.today()
+        if self.last_auto_send_date == today:
+            return
+        if now.hour() == auto_time.hour() and now.minute() == auto_time.minute():
+            if not self.session_folder:
+                self.log_output.append("⛔ Не выбрана папка с пользователями для автозапуска!")
+                return
+            self.log_output.append("\n⏰ Автоматический запуск рассылки...")
+            self.load_users_from_folder(self.session_folder)
+            self.is_broadcasting = True
+            self.start_broadcast(auto=True)
+            self.last_auto_send_date = today
     def start_broadcast(self, *args, auto=False):
+        if self.is_broadcasting and not auto:
+            self.log_output.append("⛔ Рассылка уже идёт!")
+            return
         if not self.selected_tokens:
             self.log_output.append("⛔ Выберите хотя бы одного бота для рассылки")
             return
@@ -332,44 +282,72 @@ class RassWindow(QWidget, ThreadStopMixin):
             self.log_output.append("⛔ Загрузите список пользователей")
             return
         message_text = self.message_edit.toPlainText().strip()
-        percent = self.percent_slider.value()
-        auto_flag = self.auto_send_checkbox.isChecked()
-        auto_time = self.time_edit.time().toString("HH:mm") if auto_flag else None
-        asyncio.create_task(self._start_broadcast_on_server(message_text, percent, auto_flag, auto_time))
-    async def _start_broadcast_on_server(self, message_text, percent, auto_flag, auto_time):
-        self.log_output.clear()
-        self.log_output.append("✅ Запрос на запуск рассылки отправлен на сервер...")
-        resp = await self.api_client.start_rass(self.selected_tokens, self.users, message_text, percent, auto_flag, auto_time)
-        self.log_output.append(str(resp))
+        if not message_text and not auto:
+            self.log_output.append("⛔ Введите текст сообщения для рассылки")
+            return
+        if not auto:
+            self.log_output.clear()
+            self.log_output.append("✅ Начинаем рассылку...")
+        else:
+            self.log_output.append("✅ Автоматическая рассылка начата...")
+        self.stats_list.clear()
+        self.thread_manager.stop_all_threads()
+        self.total_users = 0
+        self.total_processed = 0
+        self.report_shown = False
+        self.completed_threads.clear()
+        active_bots = len(self.selected_tokens)
+        delay_range = (0.2, 0.4) if active_bots <= 3 else (0.4, 0.8)
+        threads = []
+        for token in self.selected_tokens:
+            all_user_ids = self.users.get(token, [])
+            username = self.token_usernames.get(token, token[:10])
+            if not all_user_ids:
+                self.log_output.append(f"⚠️ {username}: нет пользователей для рассылки.")
+                continue
+            percent = self.percent_slider.value()
+            num_users = len(all_user_ids)
+            num_to_send = max(1, int(num_users * (percent / 100)))
+            user_ids = all_user_ids[:num_to_send]
+            self.total_users += num_to_send
+            self.stats_list.addItem(f"{username}: обработано 0/{len(user_ids)}")
+            thread = BotWorker(
+                token,
+                user_ids,
+                message_text,
+                username,
+                delay_range,
+                parent=self
+            )
+            thread.log_signal.connect(self.update_log_output)
+            thread.progress_signal.connect(self.progress_widget.update_progress)
+            thread.done_signal.connect(lambda t=thread: self._on_thread_finished(t))
+            threads.append(thread)
+        if not threads:
+            self.log_output.append("⛔ Нет активных ботов для рассылки")
+            return
+        for thread in threads:
+            self.thread_manager.start_thread(thread)
+        if self.total_users > 0:
+            self.progress_widget.update_progress(0, f"Начало рассылки: 0/{self.total_users}")
         self.is_broadcasting = True
     def stop_all(self, *args):
-        asyncio.create_task(self._stop_broadcast_on_server())
-    async def _stop_broadcast_on_server(self):
-        self.log_output.append("⏹️ Остановка рассылки...")
-        resp = await self.api_client.stop_rass()
-        self.log_output.append(str(resp))
+        self.stop_all_operations()
+        self.log_output.append("Рассылка остановлена.")
+        self.progress_widget.update_progress(100, "Процесс остановлен")
         self.is_broadcasting = False
-    def check_server_status(self, *args):
-        asyncio.create_task(self._update_server_status())
-    async def _update_server_status(self, *args):
-        try:
-            status_response = await self.api_client.get_status()
-            stats = status_response.get('stats', {})
-            self.stats_list.clear()
-            total_sent = 0
-            total_total = 0
-            for token, stat in stats.items():
-                sent = stat.get('sent', 0)
-                total = stat.get('total', 0)
-                running = stat.get('running', False)
-                auto = stat.get('auto', False)
-                self.stats_list.addItem(f"{token[:10]}: отправлено {sent}/{total} | {'Авто' if auto else 'Обычная'} | {'В процессе' if running else 'Остановлен'}")
-                total_sent += sent
-                total_total += total
-            if total_total > 0:
-                progress = int((total_sent / total_total) * 100)
-                self.progress_widget.update_progress(progress, f"Общий прогресс: {total_sent}/{total_total}")
-            else:
-                self.progress_widget.update_progress(0, "Нет активных рассылок")
-        except Exception as e:
-            self.log_output.append(f"Ошибка получения статуса: {e}")
+    def process_tasks(self, *args):
+        if self.is_broadcasting and self.thread_manager.is_all_finished():
+            self.is_broadcasting = False
+    def update_progress(self, value: int, status_text: str, *args, **kwargs):
+        self.progress_widget.progress_bar.setValue(value)
+        self.progress_widget.status_label.setText(status_text)
+    def _on_thread_finished(self, thread, *args, **kwargs):
+        if thread.token in self.completed_threads:
+            return
+        self.completed_threads.add(thread.token)
+        if len(self.completed_threads) >= len(self.selected_tokens) and not self.report_shown:
+            self.report_shown = True
+            self.is_broadcasting = False
+            self.progress_widget.update_progress(100, "Рассылка завершена")
+            self.log_output.append("🏁✅ Все рассылки завершены")

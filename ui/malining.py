@@ -391,16 +391,18 @@ class DialogsMode(BaseMailingMode):
 class SessionGroupsMode(BaseMailingMode):
     async def execute(self, *args, **kwargs):
         try:
+            self.thread.log_signal.emit(f"ℹ️ {os.path.basename(self.thread.session_file)} | Получение списка групп/каналов...")
             dialogs = await self.client.get_dialogs()
-            groups = [d for d in dialogs if d.is_group or d.is_channel and not d.is_user]
+            groups = [d for d in dialogs if d.is_group or (hasattr(d, 'is_channel') and d.is_channel and not d.is_user)]
             if not groups:
                 self.thread.log_signal.emit(f"❌ {os.path.basename(self.thread.session_file)} | Нет доступных групп/каналов в сессии")
-                return
+                return    
             self.total_targets = len(groups)
             self.processed_targets = 0
-            self.update_progress()            
             if hasattr(self.thread, 'window') and hasattr(self.thread.window, 'update_mailing_stats'):
                 self.thread.window.update_mailing_stats('total_targets', self.total_targets)
+            self.thread.log_signal.emit(f"ℹ️ {os.path.basename(self.thread.session_file)} | Найдено групп/каналов: {self.total_targets}")
+            success_count = 0
             for dialog in groups:
                 if self.thread.is_stopped:
                     break
@@ -408,14 +410,21 @@ class SessionGroupsMode(BaseMailingMode):
                 entity_name = getattr(entity, 'title', f"ID:{entity.id}")
                 try:
                     if await self.send_message(entity, self.thread.message, self.thread.media_path):
-                        self.processed_targets += 1
-                        self.update_progress()
+                        success_count += 1
+                        self.thread.log_signal.emit(f"✅ Успешно отправлено в {entity_name}")
+                    else:
+                        self.thread.log_signal.emit(f"⚠️ Не удалось отправить в {entity_name}")
+                    self.processed_targets += 1
+                    self.update_progress()
                 except Exception as e:
                     self.thread.log_signal.emit(f"❌ Ошибка при отправке в {entity_name}: {str(e)}")
                     self.processed_targets += 1
                     self.update_progress()
+            self.thread.log_signal.emit(f"✅ {os.path.basename(self.thread.session_file)} | Рассылка завершена. Успешно: {success_count}/{self.total_targets}")      
         except Exception as e:
             self.thread.log_signal.emit(f"❌ {os.path.basename(self.thread.session_file)} | Ошибка при обработке групп сессии: {str(e)}")
+            if hasattr(self.thread, 'window') and hasattr(self.thread.window, 'update_mailing_stats'):
+                self.thread.window.update_mailing_stats('sent_failed', self.total_targets - self.processed_targets)
 class MassMode(BaseMailingMode):
     async def execute(self, *args, **kwargs):
         try:

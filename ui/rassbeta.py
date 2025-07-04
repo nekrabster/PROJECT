@@ -1,4 +1,6 @@
 import os, asyncio, random, string
+import aiohttp
+import asyncio
 from PyQt6.QtCore import Qt, QTimer, QTime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTextEdit, QFileDialog,
@@ -7,78 +9,76 @@ from PyQt6.QtWidgets import (
 )
 from aiogram import Bot
 from ui.progress import ProgressWidget
-from ui.thread_base import ThreadStopMixin, BaseThread
+import platform
+from ui.thread_base import ThreadStopMixin
 from ui.bots_win import BotTokenWindow
-from ui.appchuy import AiogramBotConnection, AiogramErrorHandler, AiogramErrorType
-class BotWorker(BaseThread):
-    def __init__(self, token, user_ids, message, bot_name, delay_range: tuple = (0.1, 0.3), *args, **kwargs):
-        super().__init__(session_file=token, parent=kwargs.get('parent', None))
-        self.token = token
-        self.user_ids = user_ids
-        self.message = message
-        self.bot_name = bot_name
-        self.delay_range = tuple(delay_range)
-        self.bot_manager = AiogramBotConnection(token)
-        self.bot_manager.log_signal.connect(self.log_signal.emit)
-        self.bot_manager.error_signal.connect(self.handle_error)
-    def handle_error(self, token, error):
-        self.log_signal.emit(f"{token}: {error.message}")
-    async def process(self, *args, **kwargs):
+
+class RassylkaApiClient:
+    def __init__(self, server_url="http://127.0.0.1:8001"):
+        self.server_url = server_url
+        self.ssh_key = self.get_ssh_key()
+        self.activation_key = self.get_activation_key()
+
+    def get_ssh_key(self):
         try:
-            bot = await self.bot_manager.connect()
-            if not await self.bot_manager.check_connection():
-                await self.bot_manager.disconnect()
-                return
-            sent_counter = {'sent': 0}
-            total = len(self.user_ids)
-            rate_limit = 10
-            min_interval = 0.2
-            queue = asyncio.Queue()
-            for user_id in self.user_ids:
-                await queue.put(user_id)
-            async def worker():
-                while not queue.empty() and self.running:
-                    user_id = await queue.get()
-                    if not await self.bot_manager.check_connection():
-                        break
-                    random_text = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
-                    try:
-                        await bot.send_message(user_id, self.message or random_text)
-                        sent_counter['sent'] += 1
-                        progress = int((sent_counter['sent'] / total) * 100)
-                        self.emit_progress(progress, f"Отправка сообщений ботом {self.bot_name}: {sent_counter['sent']}/{total}")
-                        self.emit_log(f"PROGRESS::{self.bot_name}::{sent_counter['sent']}::{total}")
-                    except Exception as e:
-                        err = AiogramErrorHandler.classify_error(e, user_id=user_id, username=self.bot_name)
-                        msg = AiogramErrorHandler.format_error_message(self.token, err)
-                        self.emit_log(f"{msg}")
-                        if err.type in [AiogramErrorType.CONNECTION, AiogramErrorType.SSL_ERROR, AiogramErrorType.BAD_GATEWAY]:
-                            await self.bot_manager.check_connection()
-                        progress = int((sent_counter['sent'] / total) * 100)
-                        self.emit_progress(progress, f"Отправка сообщений ботом {self.bot_name}: {sent_counter['sent']}/{total}")
-                        self.emit_log(f"PROGRESS::{self.bot_name}::{sent_counter['sent']}::{total}")
-                    await asyncio.sleep(min_interval)
-                    queue.task_done()
-            workers = [asyncio.create_task(worker()) for _ in range(rate_limit)]
-            await queue.join()
-            for w in workers:
-                w.cancel()
-            await self.bot_manager.disconnect()
-            sent = sent_counter['sent']
-            failed = total - sent
-            self.emit_log(f"{self.bot_name}: завершено, всего: {sent}, ошибок: {failed}")
-        except Exception as e:
-            self.emit_log(f"❌ Бот {self.bot_name}: критическая ошибка: {e}")
+            ssh_key_file = os.path.expanduser("~/.ssh/id_rsa.pub")
+            if os.path.exists(ssh_key_file):
+                with open(ssh_key_file, 'r') as f:
+                    return f.read().strip()
+        except Exception:
+            pass
+        return platform.node()
+
+    def get_activation_key(self):
+        try:
+            with open("config.txt", 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip().startswith('key='):
+                        return line.strip().split('=', 1)[1]
+        except Exception:
+            return "default_key"
+
+    async def start_rassylka(self, users_data, message, percent, auto, auto_time):
+        payload = {
+            "auth": {"ssh_key": self.ssh_key, "activation_key": self.activation_key},
+            "users_data": users_data,
+            "message": message,
+            "percent": percent,
+            "auto": auto,
+            "auto_time": auto_time
+        }
+        async with aiohttp.ClientSession() as session:
             try:
-                await self.bot_manager.disconnect()
-            except Exception:
-                pass
-            self.emit_log(f"{self.bot_name}: завершено с ошибкой")
+                async with session.post(f"{self.server_url}/start_rassylka", json=payload, timeout=10) as response:
+                    return await response.json()
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
+
+    async def stop_rassylka(self):
+        payload = {"auth": {"ssh_key": self.ssh_key, "activation_key": self.activation_key}}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(f"{self.server_url}/stop_rassylka", json=payload, timeout=10) as response:
+                    return await response.json()
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
+
+    async def get_status(self):
+        url = f"{self.server_url}/status/{self.ssh_key}/{self.activation_key}"
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url, timeout=5) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    return {"status": "error", "message": f"Server error: {response.status}"}
+            except Exception as e:
+                return {"status": "offline", "message": str(e)}
 class RassWindow(QWidget, ThreadStopMixin):
     def __init__(self, session_folder, *args, **kwargs):
         super().__init__(*args, **kwargs)
         ThreadStopMixin.__init__(self)
         self.session_folder = session_folder
+        self.api_client = RassylkaApiClient()
         self.setWindowTitle("Рассылка")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         main_layout = QHBoxLayout(self)
@@ -156,16 +156,10 @@ class RassWindow(QWidget, ThreadStopMixin):
         self.total_processed = 0
         self.selected_tokens = []
         self.token_usernames = {}
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.process_tasks)
-        self.timer.start(100)
-        self.auto_send_timer = QTimer(self)
-        self.auto_send_timer.timeout.connect(self.check_auto_send)
-        self.auto_send_timer.start(30 * 1000)
-        self.last_auto_send_date = None
         self.is_broadcasting = False
-        self.report_shown = False
-        self.completed_threads = set()
+        self.status_timer = QTimer(self)
+        self.status_timer.timeout.connect(self.check_server_status)
+        self.status_timer.start(3000)
     def on_bots_win_tokens_updated(self, tokens, *args):
         self.selected_tokens = tokens
         self.tokens = {t: self.bot_token_window.token_usernames.get(t, t) for t in tokens}
@@ -187,19 +181,7 @@ class RassWindow(QWidget, ThreadStopMixin):
                 self.progress_widget.update_progress(progress, f"Общий прогресс: {self.total_processed}/{self.total_users}")
         else:
             self.log_output.append(message)
-    async def fetch_usernames_for_tokens(self, tokens, *args):
-        for token in tokens:
-            if token in self.token_usernames:
-                continue
-            try:
-                conn = AiogramBotConnection(token)
-                bot = await conn.connect()
-                info = await bot.get_me()
-                username = info.username or token[:10]
-                self.token_usernames[token] = username
-                await conn.disconnect()
-            except Exception as e:
-                self.token_usernames[token] = token[:10]
+
     def load_users_from_folder(self, folder, *args):
         if not folder:
             return False
@@ -232,13 +214,7 @@ class RassWindow(QWidget, ThreadStopMixin):
             except Exception as e:
                 self.log_output.append(f"❌ Ошибка при чтении файла {file_path}: {e}")
                 continue
-        if tokens_to_fetch:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(self.fetch_usernames_for_tokens(tokens_to_fetch))
-                self.log_output.append("Загрузка.")
-            else:
-                loop.run_until_complete(self.fetch_usernames_for_tokens(tokens_to_fetch))
+        asyncio.ensure_future(self.bot_token_window.fetch_usernames_for_tokens(tokens_to_fetch))
         if found_any:
             self.log_output.append("✅ Папка с пользователями загружена успешно.")
             return True
@@ -251,28 +227,9 @@ class RassWindow(QWidget, ThreadStopMixin):
             return
         self.load_users_from_folder(folder)
         self.session_folder = folder
-    def check_auto_send(self, *args):
-        if not self.auto_send_checkbox.isChecked():
-            return
+
+    def start_broadcast(self):
         if self.is_broadcasting:
-            return
-        auto_time = self.time_edit.time()
-        now = QTime.currentTime()
-        from datetime import date
-        today = date.today()
-        if self.last_auto_send_date == today:
-            return
-        if now.hour() == auto_time.hour() and now.minute() == auto_time.minute():
-            if not self.session_folder:
-                self.log_output.append("⛔ Не выбрана папка с пользователями для автозапуска!")
-                return
-            self.log_output.append("\n⏰ Автоматический запуск рассылки...")
-            self.load_users_from_folder(self.session_folder)
-            self.is_broadcasting = True
-            self.start_broadcast(auto=True)
-            self.last_auto_send_date = today
-    def start_broadcast(self, *args, auto=False):
-        if self.is_broadcasting and not auto:
             self.log_output.append("⛔ Рассылка уже идёт!")
             return
         if not self.selected_tokens:
@@ -282,72 +239,77 @@ class RassWindow(QWidget, ThreadStopMixin):
             self.log_output.append("⛔ Загрузите список пользователей")
             return
         message_text = self.message_edit.toPlainText().strip()
-        if not message_text and not auto:
-            self.log_output.append("⛔ Введите текст сообщения для рассылки")
+        is_auto = self.auto_send_checkbox.isChecked()
+        if not message_text and not is_auto:
+            self.log_output.append("⛔ Введите текст сообщения или включите авторассылку для случайного текста")
             return
-        if not auto:
-            self.log_output.clear()
-            self.log_output.append("✅ Начинаем рассылку...")
-        else:
-            self.log_output.append("✅ Автоматическая рассылка начата...")
-        self.stats_list.clear()
-        self.thread_manager.stop_all_threads()
-        self.total_users = 0
-        self.total_processed = 0
-        self.report_shown = False
-        self.completed_threads.clear()
-        active_bots = len(self.selected_tokens)
-        delay_range = (0.2, 0.4) if active_bots <= 3 else (0.4, 0.8)
-        threads = []
-        for token in self.selected_tokens:
-            all_user_ids = self.users.get(token, [])
-            username = self.token_usernames.get(token, token[:10])
-            if not all_user_ids:
-                self.log_output.append(f"⚠️ {username}: нет пользователей для рассылки.")
-                continue
-            percent = self.percent_slider.value()
-            num_users = len(all_user_ids)
-            num_to_send = max(1, int(num_users * (percent / 100)))
-            user_ids = all_user_ids[:num_to_send]
-            self.total_users += num_to_send
-            self.stats_list.addItem(f"{username}: обработано 0/{len(user_ids)}")
-            thread = BotWorker(
-                token,
-                user_ids,
-                message_text,
-                username,
-                delay_range,
-                parent=self
-            )
-            thread.log_signal.connect(self.update_log_output)
-            thread.progress_signal.connect(self.progress_widget.update_progress)
-            thread.done_signal.connect(lambda t=thread: self._on_thread_finished(t))
-            threads.append(thread)
-        if not threads:
-            self.log_output.append("⛔ Нет активных ботов для рассылки")
-            return
-        for thread in threads:
-            self.thread_manager.start_thread(thread)
-        if self.total_users > 0:
-            self.progress_widget.update_progress(0, f"Начало рассылки: 0/{self.total_users}")
+        self.log_output.clear()
+        self.log_output.append("✅ Отправка запроса на сервер...")
         self.is_broadcasting = True
-    def stop_all(self, *args):
-        self.stop_all_operations()
-        self.log_output.append("Рассылка остановлена.")
-        self.progress_widget.update_progress(100, "Процесс остановлен")
+        self.start_button.setDisabled(True)
+        self.stop_button.setDisabled(False)
+        users_data_to_send = {token: self.users.get(token, []) for token in self.selected_tokens}
+        auto_time_str = self.time_edit.time().toString("HH:mm")
+        percent = self.percent_slider.value()
+        asyncio.ensure_future(self.api_client.start_rassylka(
+            users_data=users_data_to_send,
+            message=message_text,
+            percent=percent,
+            auto=is_auto,
+            auto_time=auto_time_str
+        ))
+    def stop_all(self):
+        self.log_output.append("✅ Отправка команды остановки на сервер...")
+        asyncio.ensure_future(self.api_client.stop_rassylka())
         self.is_broadcasting = False
-    def process_tasks(self, *args):
-        if self.is_broadcasting and self.thread_manager.is_all_finished():
-            self.is_broadcasting = False
+        self.start_button.setDisabled(False)
+        self.stop_button.setDisabled(True)
+
     def update_progress(self, value: int, status_text: str, *args, **kwargs):
         self.progress_widget.progress_bar.setValue(value)
         self.progress_widget.status_label.setText(status_text)
-    def _on_thread_finished(self, thread, *args, **kwargs):
-        if thread.token in self.completed_threads:
-            return
-        self.completed_threads.add(thread.token)
-        if len(self.completed_threads) >= len(self.selected_tokens) and not self.report_shown:
-            self.report_shown = True
+
+    def check_server_status(self):
+        asyncio.ensure_future(self._check_server_status())
+
+    async def _check_server_status(self):
+        status = await self.api_client.get_status()
+        if status.get("status") == "offline":
+            self.stats_list.clear()
+            self.stats_list.addItem(f"Сервер недоступен: {status.get('message')}")
             self.is_broadcasting = False
-            self.progress_widget.update_progress(100, "Рассылка завершена")
-            self.log_output.append("🏁✅ Все рассылки завершены")
+            return
+
+        tasks = status.get("tasks", {})
+        self.stats_list.clear()
+        total_sent = 0
+        total_failed = 0
+        total_overall = 0
+        is_running = status.get("status") == "running"
+
+        if not tasks and not is_running:
+            self.stats_list.addItem("Нет активных задач на сервере.")
+
+        for bot_name, stats in tasks.items():
+            self.stats_list.addItem(f"{bot_name}: {stats['sent']}/{stats['total']} (Ошибок: {stats['failed']})")
+            total_sent += stats['sent']
+            total_failed += stats['failed']
+            total_overall += stats['total']
+
+        if total_overall > 0:
+            progress = int(((total_sent + total_failed) / total_overall) * 100)
+            self.progress_widget.update_progress(progress, f"Общий прогресс: {total_sent + total_failed} / {total_overall}")
+        else:
+            self.progress_widget.update_progress(0, "Ожидание задач...")
+
+        self.is_broadcasting = is_running
+        self.start_button.setDisabled(self.is_broadcasting)
+        self.stop_button.setDisabled(not self.is_broadcasting)
+
+        autoschedule = status.get("autoschedule", {})
+        if autoschedule.get("auto"):
+            self.auto_send_checkbox.setChecked(True)
+            self.time_edit.setTime(QTime.fromString(autoschedule.get("auto_time", "00:00"), "HH:mm"))
+        else:
+            self.auto_send_checkbox.setChecked(False)
+

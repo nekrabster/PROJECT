@@ -33,6 +33,7 @@ class MailingMode(Enum):
     USERS = auto()
     DIALOGS = auto()
     MASS = auto()
+    SESSION_GROUPS = auto()
 @dataclass
 class MailingConfig:
     mode: MailingMode
@@ -387,6 +388,34 @@ class DialogsMode(BaseMailingMode):
                     self.update_progress()
         except Exception as e:
             self.thread.log_signal.emit(f"❌ {os.path.basename(self.thread.session_file)} | Ошибка при получении списка диалогов: {str(e)}")
+class SessionGroupsMode(BaseMailingMode):
+    async def execute(self, *args, **kwargs):
+        try:
+            dialogs = await self.client.get_dialogs()
+            groups = [d for d in dialogs if d.is_group or d.is_channel and not d.is_user]
+            if not groups:
+                self.thread.log_signal.emit(f"❌ {os.path.basename(self.thread.session_file)} | Нет доступных групп/каналов в сессии")
+                return
+            self.total_targets = len(groups)
+            self.processed_targets = 0
+            self.update_progress()            
+            if hasattr(self.thread, 'window') and hasattr(self.thread.window, 'update_mailing_stats'):
+                self.thread.window.update_mailing_stats('total_targets', self.total_targets)
+            for dialog in groups:
+                if self.thread.is_stopped:
+                    break
+                entity = dialog.entity
+                entity_name = getattr(entity, 'title', f"ID:{entity.id}")
+                try:
+                    if await self.send_message(entity, self.thread.message, self.thread.media_path):
+                        self.processed_targets += 1
+                        self.update_progress()
+                except Exception as e:
+                    self.thread.log_signal.emit(f"❌ Ошибка при отправке в {entity_name}: {str(e)}")
+                    self.processed_targets += 1
+                    self.update_progress()
+        except Exception as e:
+            self.thread.log_signal.emit(f"❌ {os.path.basename(self.thread.session_file)} | Ошибка при обработке групп сессии: {str(e)}")
 class MassMode(BaseMailingMode):
     async def execute(self, *args, **kwargs):
         try:
@@ -527,6 +556,8 @@ class MailingThread(BaseThread):
             return UsersMode(self)
         elif self.mode == "dialogs":
             return DialogsMode(self)
+        elif self.mode == "session_groups":
+            return SessionGroupsMode(self)
         else:
             return MassMode(self)
     def emit_progress(self, value: int, status: str, *args, **kwargs):
@@ -632,8 +663,9 @@ class MailingWindow(QWidget, ThreadStopMixin):
         self.user_mode = QRadioButton("▶ По пользователям")
         self.mass_mode = QRadioButton("▶ По чатам")
         self.forward_mode = QRadioButton("▶ Пересылка")
+        self.session_groups_mode = QRadioButton("▶ Группы сессии")
         self.user_mode.setChecked(True)
-        for btn in [self.user_mode, self.mass_mode, self.forward_mode]:
+        for btn in [self.user_mode, self.mass_mode, self.forward_mode, self.session_groups_mode]:
             self.mode_group.addButton(btn)
             mode_layout.addWidget(btn)
         self.mode_group.buttonClicked.connect(self.on_mode_changed)
@@ -728,13 +760,15 @@ class MailingWindow(QWidget, ThreadStopMixin):
     def on_mode_changed(self, button, *args, **kwargs):
         is_forward = button == self.forward_mode
         is_mass = button == self.mass_mode
+        is_session_groups = button == self.session_groups_mode
+        
         self.from_chat_input.setVisible(is_forward)
         self.message_ids_input.setVisible(is_forward)
         self.forward_to_users_checkbox.setVisible(is_forward)
         self.forward_to_chats_checkbox.setVisible(is_forward)
         self.message_button.setVisible(not is_forward)
         self.load_groups_button.setVisible(is_mass or (is_forward and self.forward_to_chats_checkbox.isChecked()))
-        self.load_users_button.setVisible(not is_mass and (not is_forward or (is_forward and self.forward_to_users_checkbox.isChecked())))
+        self.load_users_button.setVisible(not is_mass and not is_session_groups and (not is_forward or (is_forward and self.forward_to_users_checkbox.isChecked())))
     def on_forward_target_changed(self, checked, *args, **kwargs):
         if self.sender() == self.forward_to_users_checkbox:
             if checked:
@@ -768,6 +802,10 @@ class MailingWindow(QWidget, ThreadStopMixin):
                 return
             if not hasattr(self, 'groups_list'):
                 QMessageBox.warning(self, "Ошибка", "Загрузите список групп/ботов")
+                return
+        elif self.session_groups_mode.isChecked():
+            if not self.message:
+                QMessageBox.warning(self, "Ошибка", "Введите сообщение")
                 return
         else:
             if not self.message:
@@ -978,6 +1016,8 @@ class MailingWindow(QWidget, ThreadStopMixin):
             return "forward"
         elif self.mass_mode.isChecked():
             return "mass"
+        elif self.session_groups_mode.isChecked():
+            return "session_groups"
         else:
             return "users"
     def update_thread_progress(self, value: int, status: str, *args, **kwargs):
@@ -1114,4 +1154,3 @@ class MailingWindow(QWidget, ThreadStopMixin):
     def show_error_dialog(self, error_message, *args):
         from PyQt6.QtCore import QTimer
         QTimer.singleShot(5000, lambda: ErrorReportDialog.send_error_report(None, error_text=error_message))
-

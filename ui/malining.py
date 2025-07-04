@@ -836,7 +836,9 @@ class MailingWindow(QWidget, ThreadStopMixin):
         self.report_shown = False
         self.stopped = False
         if not selected_sessions:
-            return
+            return  
+        self.start_button.setEnabled(False)
+        self.stop_button.setEnabled(True)
         self.log_area.clear()
         MailingThread.reset_limits_counter()
         use_proxy = self.use_proxy_checkbox.isChecked()
@@ -943,8 +945,11 @@ class MailingWindow(QWidget, ThreadStopMixin):
     def stop_mailing(self, *args, **kwargs):
         self.stopped = True
         self.stop_all_operations()
+        
+        # Update button states
         self.start_button.setEnabled(True)
-        self.stop_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+        
         self.log_area.append("Процесс остановлен.")
         self.progress_widget.update_progress(100, "Процесс остановлен")
         self.user_list = None

@@ -407,20 +407,11 @@ class SessionGroupsMode(BaseMailingMode):
                 if self.thread.is_stopped:
                     break
                 entity = dialog.entity
-                entity_name = getattr(entity, 'title', f"ID:{entity.id}")
-                try:
-                    if await self.send_message(entity, self.thread.message, self.thread.media_path):
-                        success_count += 1
-                        self.thread.log_signal.emit(f"✅ Успешно отправлено в {entity_name}")
-                    else:
-                        self.thread.log_signal.emit(f"⚠️ Не удалось отправить в {entity_name}")
-                    self.processed_targets += 1
-                    self.update_progress()
-                except Exception as e:
-                    self.thread.log_signal.emit(f"❌ Ошибка при отправке в {entity_name}: {str(e)}")
-                    self.processed_targets += 1
-                    self.update_progress()
-            self.thread.log_signal.emit(f"✅ {os.path.basename(self.thread.session_file)} | Рассылка завершена. Успешно: {success_count}/{self.total_targets}")      
+                if await self.send_message(entity, self.thread.message, self.thread.media_path):
+                    success_count += 1
+                self.processed_targets += 1
+                self.update_progress()
+            self.thread.log_signal.emit(f"✅ {os.path.basename(self.thread.session_file)} | Рассылка завершена. Успешно: {success_count}/{self.total_targets}")
         except Exception as e:
             self.thread.log_signal.emit(f"❌ {os.path.basename(self.thread.session_file)} | Ошибка при обработке групп сессии: {str(e)}")
             if hasattr(self.thread, 'window') and hasattr(self.thread.window, 'update_mailing_stats'):

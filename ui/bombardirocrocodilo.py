@@ -62,7 +62,7 @@ def load_config():
         "api_id": 0,
         "api_hash": "",
         "session_folder": os.path.join(base_path, "sessions"),
-        "bot_token_folder": os.path.join(base_path, "bot_tokens"),
+        "bot_token_folder": os.path.join(base_path, "bots"),
         "proxy_config": {
             "type": "",
             "ip": "",

@@ -1,4 +1,4 @@
-name: Build Windows EXE with Nuitka (Two-Stage)
+name: Build Windows EXE with Nuitka
 
 on:
   workflow_dispatch:
@@ -6,9 +6,92 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build:
+  build_pyd_modules:
     runs-on: windows-latest
+    outputs:
+      pyd_dir: ${{ steps.set_output.outputs.pyd_dir }}
+    steps:
+      - name: 🧾 Checkout code
+        uses: actions/checkout@v4
 
+      - name: 🐍 Set up Python 3.13.2
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.2'
+
+      - name: 🆙 Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: 📦 Install requirements
+        run: pip install -r requirements.txt
+
+      - name: 🌙 Install latest Nuitka
+        run: pip install --upgrade nuitka
+
+      - name: 🧰 Setup MSVC for Clang
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: ⚙️ Install LLVM (Clang)
+        uses: egor-tensin/setup-clang@v1
+        with:
+          version: 17
+
+      - name: 🔧 Build ui modules as pyd (C extensions)
+        shell: pwsh
+        run: |
+          $env:CC = "clang-cl"
+          $env:CXX = "clang-cl"
+          # Создаем папку для pyd
+          $pyd_dir = "compiled_pyd"
+          mkdir $pyd_dir
+          # Собираем каждый ui модуль в pyd
+          $modules = @(
+            "ui.rudich","ui.complas","ui.components","ui.malining","ui.malina","ui.bombardirocrocodilo",
+            "ui.newtoken","ui.kachok","ui.session","ui.sessionbeta","ui.subscribe","ui.session_manager",
+            "ui.sim_manager","ui.session_win","ui.bombardo","ui.kraken","ui.okak","ui.rass","ui.timer",
+            "ui.progress","ui.thread_base","ui.apphuy","ui.appchuy","ui.search","ui.proxy_utils","ui.mail",
+            "ui.instructions","ui.subs","ui.damkrat","ui.theme","ui.styles","ui.top","ui.side","ui.bottom",
+            "ui.informatika","ui.bot_manager","ui.bots_win","ui.gulick","ui.integraly","ui.kms","ui.codik",
+            "ui.adv","ui.filya","ui.decorators","ui.svg_icons","ui.svg_utils"
+          )
+          foreach ($mod in $modules) {
+            Write-Host "Building module: $mod"
+            nuitka `
+              --module `
+              --remove-output `
+              --no-pyi-file `
+              --output-dir=$pyd_dir `
+              --jobs=4 `
+              --clang `
+              --python-flag=no_asserts `
+              --python-flag=no_docstrings `
+              --python-flag=no_site `
+              "$mod".replace(".", "/") + ".py"
+          }
+          echo "::set-output name=pyd_dir::$pyd_dir"
+
+      - name: 🔥 Remove .py sources for ui modules
+        shell: pwsh
+        run: |
+          $modules = @(
+            "ui/rudich.py","ui/complas.py","ui/components.py","ui/malining.py","ui/malina.py","ui/bombardirocrocodilo.py",
+            "ui/newtoken.py","ui/kachok.py","ui/session.py","ui/sessionbeta.py","ui/subscribe.py","ui/session_manager.py",
+            "ui/sim_manager.py","ui/session_win.py","ui/bombardo.py","ui/kraken.py","ui/okak.py","ui/rass.py","ui/timer.py",
+            "ui/progress.py","ui/thread_base.py","ui/apphuy.py","ui/appchuy.py","ui/search.py","ui/proxy_utils.py","ui/mail.py",
+            "ui/instructions.py","ui/subs.py","ui/damkrat.py","ui/theme.py","ui/styles.py","ui/top.py","ui/side.py","ui/bottom.py",
+            "ui/informatika.py","ui/bot_manager.py","ui/bots_win.py","ui/gulick.py","ui/integraly.py","ui/kms.py","ui/codik.py",
+            "ui/adv.py","ui/filya.py","ui/decorators.py","ui/svg_icons.py","ui/svg_utils.py"
+          )
+          foreach ($file in $modules) {
+            if (Test-Path $file) {
+              Remove-Item $file -Force
+              Write-Host "Deleted $file"
+            }
+          }
+
+  build_exe:
+    needs: build_pyd_modules
+    runs-on: windows-latest
     steps:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
@@ -41,43 +124,12 @@ jobs:
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
 
-      # 🚧 Этап 1: Компиляция всех .py в .pyd
-      - name: 🔧 Compile modules to .pyd
-        shell: pwsh
-        run: |
-          $env:CC = "clang-cl"
-          $env:CXX = "clang-cl"
-          $modules = Get-ChildItem -Recurse -Filter *.py -Path .\ui | Where-Object { $_.Name -ne "main.py" }
-          foreach ($mod in $modules) {
-            nuitka `
-              $mod.FullName `
-              --module `
-              --output-dir=compiled `
-              --remove-output `
-              --jobs=4 `
-              --no-pyi-file `
-              --clang `
-              --lto=yes `
-              --msvc=latest `
-              --python-flag=no_docstrings `
-              --python-flag=no_site `
-              --disable-dll-dependency-cache `
-              --disable-ccache `
-              --cf-protection=none
-          }
-
-      # 🧹 Удаление исходников после компиляции .pyd
-      - name: 🗑 Remove .py source files
-        shell: bash
-        run: |
-          find ./ui -name "*.py" ! -name "main.py" -type f -delete
-
-      # 🛠 Этап 2: Сборка main.py в .exe
-      - name: 🚀 Build final .exe with Nuitka
+      - name: 🛠 Build .exe with Nuitka (Performance Optimized)
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
+          PYTHONPATH: compiled_pyd
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
@@ -94,6 +146,8 @@ jobs:
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
+            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
+            --include-data-dir=icons=icons `
             --clang `
             --lto=yes `
             --jobs=4 `
@@ -105,8 +159,52 @@ jobs:
             --disable-dll-dependency-cache `
             --disable-ccache `
             --msvc=latest `
-            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
-            --include-data-dir=icons=icons `
+            --include-module=ui.rudich `
+            --include-module=ui.complas `
+            --include-module=ui.components `
+            --include-module=ui.malining `
+            --include-module=ui.malina `
+            --include-module=ui.bombardirocrocodilo `
+            --include-module=ui.newtoken `
+            --include-module=ui.kachok `
+            --include-module=ui.session `
+            --include-module=ui.sessionbeta `
+            --include-module=ui.subscribe `
+            --include-module=ui.session_manager `
+            --include-module=ui.sim_manager `
+            --include-module=ui.session_win `
+            --include-module=ui.bombardo `
+            --include-module=ui.kraken `
+            --include-module=ui.okak `
+            --include-module=ui.rass `
+            --include-module=ui.timer `
+            --include-module=ui.progress `
+            --include-module=ui.thread_base `
+            --include-module=ui.apphuy `
+            --include-module=ui.appchuy `
+            --include-module=ui.search `
+            --include-module=ui.proxy_utils `
+            --include-module=ui.mail `
+            --include-module=ui.instructions `
+            --include-module=ui.subs `
+            --include-module=ui.damkrat `
+            --include-module=ui.theme `
+            --include-module=ui.styles `
+            --include-module=ui.top `
+            --include-module=ui.side `
+            --include-module=ui.bottom `
+            --include-module=ui.informatika `
+            --include-module=ui.bot_manager `
+            --include-module=ui.bots_win `
+            --include-module=ui.gulick `
+            --include-module=ui.integraly `
+            --include-module=ui.kms `
+            --include-module=ui.codik `
+            --include-module=ui.adv `
+            --include-module=ui.filya `
+            --include-module=ui.decorators `
+            --include-module=ui.svg_icons `
+            --include-module=ui.svg_utils `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version="2.4.0" `

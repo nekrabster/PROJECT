@@ -112,7 +112,16 @@ class SubscriptionProcess(BaseThread):
             try:
                 message = TaskWidget.generate_random_message()
                 await self.connection.client.send_message(entity, message)
-                entity_name = getattr(entity, 'title', str(entity))
+                if hasattr(entity, 'title') and entity.title:
+                    entity_name = entity.title
+                elif hasattr(entity, 'first_name') and entity.first_name:
+                    entity_name = entity.first_name
+                    if hasattr(entity, 'last_name') and entity.last_name:
+                        entity_name += ' ' + entity.last_name
+                    if hasattr(entity, 'username') and entity.username:
+                        entity_name += f' (@{entity.username})'
+                else:
+                    entity_name = str(entity.id) if hasattr(entity, 'id') else str(entity)
                 self.emit_log(f"✅ {os.path.basename(self.session_file)} | Отправлено сообщение в {entity_name}: {message}")
             except Exception as e:
                 self.emit_log(f"⚠️ {os.path.basename(self.session_file)} | Не удалось отправить сообщение: {str(e)}")
@@ -133,9 +142,22 @@ class SubscriptionProcess(BaseThread):
             else:
                 entity = await self.connection.client.get_entity(bot_url)
                 if hasattr(entity, 'bot') and entity.bot:
-                    await self.connection.client.send_message(entity, '/start')
-                    self.emit_log(f"✅ {os.path.basename(self.session_file)} | Отправлен /start боту {bot_url}")
-                    await self._send_message_to_entity(entity)
+                    try:
+                        await self.connection.client.send_message(entity, '/start')
+                        self.emit_log(f"✅ {os.path.basename(self.session_file)} | Отправлен /start боту {bot_url}")
+                        await self._send_message_to_entity(entity)
+                    except Exception as e:
+                        if "You blocked this user" in str(e):
+                            try:
+                                await unblock_user(self.connection.client, entity.id)
+                                self.emit_log(f"🔓 {os.path.basename(self.session_file)} | Разблокировали бота {bot_url}, пробуем снова...")
+                                await self.connection.client.send_message(entity, '/start')
+                                await self._send_message_to_entity(entity)
+                            except Exception as unblock_error:
+                                self.emit_log(f"⚠️ {os.path.basename(self.session_file)} | Ошибка при разблокировке бота: {str(unblock_error)}")
+                                raise unblock_error
+                        else:
+                            raise e
                 else:
                     is_channel = hasattr(entity, 'broadcast') and entity.broadcast
                     await self.connection.client(JoinChannelRequest(entity))

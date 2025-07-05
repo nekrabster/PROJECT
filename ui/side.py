@@ -41,7 +41,7 @@ class DispatcherLogo(QWidget):
     update_available = pyqtSignal(str, str)
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.current_version = "2.3.9"
+        self.current_version = "2.4.0"
         self.update_url = None
         self.update_checker = None
         self.setup_ui()
@@ -273,6 +273,7 @@ class SideBar:
                 ("Автоответы ботов", "session", create_svg_icon(svg_icons['chat'], icon_color)),
                 ("Автоответы ботов (beta)", "sessionbeta", create_svg_icon(svg_icons['chat'], icon_color)),
                 ("Рассылка ботов", "rass", create_svg_icon(svg_icons['broadcast'], icon_color)),
+                ("Рассылка ботов (beta)", "rassbeta", create_svg_icon(svg_icons['broadcast'], icon_color)),
             ])
         ]
         single_buttons = [

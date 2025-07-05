@@ -1,4 +1,4 @@
-name: Build Windows EXE with Nuitka
+name: Build Windows EXE with Nuitka (Two-Stage)
 
 on:
   workflow_dispatch:
@@ -40,7 +40,40 @@ jobs:
         shell: bash
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
-      - name: 🛠 Build .exe with Nuitka (Performance Optimized)
+
+      # 🚧 Этап 1: Компиляция всех .py в .pyd
+      - name: 🔧 Compile modules to .pyd
+        shell: pwsh
+        run: |
+          $env:CC = "clang-cl"
+          $env:CXX = "clang-cl"
+          $modules = Get-ChildItem -Recurse -Filter *.py -Path .\ui | Where-Object { $_.Name -ne "main.py" }
+          foreach ($mod in $modules) {
+            nuitka `
+              $mod.FullName `
+              --module `
+              --output-dir=compiled `
+              --remove-output `
+              --jobs=4 `
+              --no-pyi-file `
+              --clang `
+              --lto=yes `
+              --msvc=latest `
+              --python-flag=no_docstrings `
+              --python-flag=no_site `
+              --disable-dll-dependency-cache `
+              --disable-ccache `
+              --cf-protection=none
+          }
+
+      # 🧹 Удаление исходников после компиляции .pyd
+      - name: 🗑 Remove .py source files
+        shell: bash
+        run: |
+          find ./ui -name "*.py" ! -name "main.py" -type f -delete
+
+      # 🛠 Этап 2: Сборка main.py в .exe
+      - name: 🚀 Build final .exe with Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
@@ -61,8 +94,6 @@ jobs:
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `
-            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
-            --include-data-dir=icons=icons `
             --clang `
             --lto=yes `
             --jobs=4 `
@@ -74,56 +105,13 @@ jobs:
             --disable-dll-dependency-cache `
             --disable-ccache `
             --msvc=latest `
-            --include-module=ui.rudich `
-            --include-module=ui.complas `
-            --include-module=ui.components `
-            --include-module=ui.malining `
-            --include-module=ui.malina `
-            --include-module=ui.bombardirocrocodilo `
-            --include-module=ui.newtoken `
-            --include-module=ui.kachok `
-            --include-module=ui.session `
-            --include-module=ui.sessionbeta `
-            --include-module=ui.subscribe `
-            --include-module=ui.session_manager `
-            --include-module=ui.sim_manager `
-            --include-module=ui.session_win `
-            --include-module=ui.bombardo `
-            --include-module=ui.kraken `
-            --include-module=ui.okak `
-            --include-module=ui.rass `
-            --include-module=ui.timer `
-            --include-module=ui.progress `
-            --include-module=ui.thread_base `
-            --include-module=ui.apphuy `
-            --include-module=ui.appchuy `
-            --include-module=ui.search `
-            --include-module=ui.proxy_utils `
-            --include-module=ui.mail `
-            --include-module=ui.instructions `
-            --include-module=ui.subs `
-            --include-module=ui.damkrat `
-            --include-module=ui.theme `
-            --include-module=ui.styles `
-            --include-module=ui.top `
-            --include-module=ui.side `
-            --include-module=ui.bottom `
-            --include-module=ui.informatika `
-            --include-module=ui.bot_manager `
-            --include-module=ui.bots_win `
-            --include-module=ui.gulick `
-            --include-module=ui.integraly `
-            --include-module=ui.kms `
-            --include-module=ui.codik `
-            --include-module=ui.adv `
-            --include-module=ui.filya `
-            --include-module=ui.decorators `
-            --include-module=ui.svg_icons `
-            --include-module=ui.svg_utils `
+            --include-data-file="${{ steps.certifi_path.outputs.certifi_path }}=certifi/cacert.pem" `
+            --include-data-dir=icons=icons `
             --windows-company-name="SecureSoft" `
             --windows-product-name="Soft-K" `
             --windows-product-version="2.4.0" `
             --report=build-report.txt
+
       - name: ☁️ Upload .exe as artifact
         uses: actions/upload-artifact@v4
         with:

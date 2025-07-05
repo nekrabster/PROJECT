@@ -146,7 +146,7 @@ class ActivationWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)        
-        self.CURRENT_VERSION = "2.3.9"
+        self.CURRENT_VERSION = "2.4.0"
         self.drag_position = None
         self.validation_worker = None
         self.update_url = None

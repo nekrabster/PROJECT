@@ -73,7 +73,7 @@ class RassylkaApiClient:
                     return {"status": "error", "message": f"Server error: {response.status}"}
             except Exception as e:
                 return {"status": "offline", "message": str(e)}
-class RassWindow(QWidget, ThreadStopMixin):
+class RassWindowBeta(QWidget, ThreadStopMixin):
     def __init__(self, session_folder, *args, **kwargs):
         super().__init__(*args, **kwargs)
         ThreadStopMixin.__init__(self)

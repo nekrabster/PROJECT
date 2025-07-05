@@ -9,7 +9,8 @@ jobs:
   build_pyd_modules:
     runs-on: windows-latest
     outputs:
-      pyd_dir: ${{ steps.set_output.outputs.pyd_dir }}
+      pyd_dir: ${{ steps.save_output.outputs.pyd_dir }}
+
     steps:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
@@ -36,15 +37,14 @@ jobs:
         with:
           version: 17
 
-      - name: 🔧 Build ui modules as pyd (C extensions)
+      - name: 🔧 Build ui modules as .pyd (C extensions)
+        id: compile_pyd
         shell: pwsh
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"
-          # Создаем папку для pyd
           $pyd_dir = "compiled_pyd"
           mkdir $pyd_dir
-          # Собираем каждый ui модуль в pyd
           $modules = @(
             "ui.rudich","ui.complas","ui.components","ui.malining","ui.malina","ui.bombardirocrocodilo",
             "ui.newtoken","ui.kachok","ui.session","ui.sessionbeta","ui.subscribe","ui.session_manager",
@@ -55,7 +55,8 @@ jobs:
             "ui.adv","ui.filya","ui.decorators","ui.svg_icons","ui.svg_utils"
           )
           foreach ($mod in $modules) {
-            Write-Host "Building module: $mod"
+            $mod_path = "$($mod -replace '\.', '/').py"
+            Write-Host "Compiling $mod_path to .pyd"
             nuitka `
               --module `
               --remove-output `
@@ -66,9 +67,9 @@ jobs:
               --python-flag=no_asserts `
               --python-flag=no_docstrings `
               --python-flag=no_site `
-              "$mod".replace(".", "/") + ".py"
+              $mod_path
           }
-          echo "::set-output name=pyd_dir::$pyd_dir"
+          "pyd_dir=$pyd_dir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: 🔥 Remove .py sources for ui modules
         shell: pwsh
@@ -85,13 +86,14 @@ jobs:
           foreach ($file in $modules) {
             if (Test-Path $file) {
               Remove-Item $file -Force
-              Write-Host "Deleted $file"
+              Write-Host "Deleted: $file"
             }
           }
 
   build_exe:
     needs: build_pyd_modules
     runs-on: windows-latest
+
     steps:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
@@ -124,12 +126,12 @@ jobs:
         run: |
           echo "certifi_path=$(python -c 'import certifi; print(certifi.where())')" >> $GITHUB_OUTPUT
 
-      - name: 🛠 Build .exe with Nuitka (Performance Optimized)
+      - name: 🛠 Build main.exe with Nuitka
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
           PYTHONLEGACYWINDOWSSTDIO: "utf-8"
-          PYTHONPATH: compiled_pyd
+          PYTHONPATH: ${{ needs.build_pyd_modules.outputs.pyd_dir }}
         run: |
           $env:CC = "clang-cl"
           $env:CXX = "clang-cl"

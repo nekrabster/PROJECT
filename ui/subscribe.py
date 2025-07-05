@@ -89,43 +89,63 @@ class SubscriptionProcess(BaseThread):
         finally:
             if hasattr(self.connection, 'client') and self.connection.client:
                 await self.connection.disconnect()
+    async def _register_views(self, entity, is_private=False):
+        try:
+            messages = await self.connection.client.get_messages(entity, limit=3)
+            if messages:
+                from telethon.tl.functions.messages import GetMessagesViewsRequest
+                msg_ids = [msg.id for msg in messages]
+                await self.connection.client(GetMessagesViewsRequest(
+                    peer=entity,
+                    id=msg_ids,
+                    increment=True
+                ))
+                entity_name = getattr(entity, 'title', str(entity))
+                log_msg = f"Зарегистрированы просмотры для {len(messages)} постов"
+                log_msg += f" в {'приватном ' if is_private else ''}канале {entity_name}" if hasattr(entity, 'broadcast') else f" в группе {entity_name}"
+                self.emit_log(f"✅ {os.path.basename(self.session_file)} | {log_msg}")
+                await asyncio.sleep(2)
+        except Exception as e:
+            self.emit_log(f"⚠️ {os.path.basename(self.session_file)} | Ошибка при регистрации просмотров: {str(e)}")
+    async def _send_message_to_entity(self, entity, is_channel=False):
+        if self.parent.send_messages_checkbox.isChecked() and (not is_channel or not getattr(entity, 'broadcast', False)):
+            try:
+                message = TaskWidget.generate_random_message()
+                await self.connection.client.send_message(entity, message)
+                entity_name = getattr(entity, 'title', str(entity))
+                self.emit_log(f"✅ {os.path.basename(self.session_file)} | Отправлено сообщение в {entity_name}: {message}")
+            except Exception as e:
+                self.emit_log(f"⚠️ {os.path.basename(self.session_file)} | Не удалось отправить сообщение: {str(e)}")
+
     async def _handle_subscribe(self, bot_url):
-        if is_private_invite(bot_url):
-            hash_part = extract_invite_hash(bot_url)
-            if not hash_part:
-                self.emit_log(f"❌ {os.path.basename(self.session_file)} | Недействительная приватная ссылка: {bot_url}")
-                return
-            try:
+        try:
+            if is_private_invite(bot_url):
+                hash_part = extract_invite_hash(bot_url)
+                if not hash_part:
+                    self.emit_log(f"❌ {os.path.basename(self.session_file)} | Недействительная приватная ссылка: {bot_url}")
+                    return
                 updates = await self.connection.client(ImportChatInviteRequest(hash_part))
-                chat_id = updates.chats[0].id if hasattr(updates, 'chats') and updates.chats else None
-                self.emit_log(f"✅ {os.path.basename(self.session_file)} | Вступили по приватной ссылке: {bot_url}")
-                if self.parent.send_messages_checkbox.isChecked() and chat_id:
-                    message = TaskWidget.generate_random_message()
-                    await self.connection.client.send_message(chat_id, message)
-                    self.emit_log(f"✅ {os.path.basename(self.session_file)} | Отправлено сообщение в чат: {message}")
-            except Exception as e:
-                self.emit_log(f"❌ {os.path.basename(self.session_file)} | Ошибка приватной ссылки: {str(e)}")
-        elif bot_url.endswith("bot"):
-            try:
-                await self.connection.client.send_message(bot_url, '/start')
-                self.emit_log(f"✅ {os.path.basename(self.session_file)} | Отправлен /start боту {bot_url}")
-                if self.parent.send_messages_checkbox.isChecked():
-                    message = TaskWidget.generate_random_message()
-                    await self.connection.client.send_message(bot_url, message)
-                    self.emit_log(f"✅ {os.path.basename(self.session_file)} | Отправлено сообщение боту {bot_url}: {message}")
-            except Exception as e:
-                self.emit_log(f"❌ {os.path.basename(self.session_file)} | Ошибка отправки /start: {str(e)}")
-        else:
-            try:
+                if hasattr(updates, 'chats') and updates.chats:
+                    chat_id = updates.chats[0].id
+                    self.emit_log(f"✅ {os.path.basename(self.session_file)} | Вступили по приватной ссылке: {bot_url}")
+                    await self._register_views(chat_id, is_private=True)
+                    await self._send_message_to_entity(chat_id)
+            else:
                 entity = await self.connection.client.get_entity(bot_url)
-                await self.connection.client(JoinChannelRequest(bot_url))
-                self.emit_log(f"✅ {os.path.basename(self.session_file)} | Подписан на {bot_url}")
-                if self.parent.send_messages_checkbox.isChecked():
-                    message = TaskWidget.generate_random_message()
-                    await self.connection.client.send_message(bot_url, message)
-                    self.emit_log(f"✅ {os.path.basename(self.session_file)} | Отправлено сообщение в {bot_url}: {message}")
-            except Exception as e:
-                self.emit_log(f"❌ {os.path.basename(self.session_file)} | Ошибка подписки: {str(e)}")
+                if hasattr(entity, 'bot') and entity.bot:
+                    await self.connection.client.send_message(entity, '/start')
+                    self.emit_log(f"✅ {os.path.basename(self.session_file)} | Отправлен /start боту {bot_url}")
+                    await self._send_message_to_entity(entity)
+                else:
+                    is_channel = hasattr(entity, 'broadcast') and entity.broadcast
+                    await self.connection.client(JoinChannelRequest(entity))
+                    entity_type = 'канал' if is_channel else 'группу'
+                    self.emit_log(f"✅ {os.path.basename(self.session_file)} | Подписан на {entity_type} {getattr(entity, 'title', '')}")
+                    if is_channel:
+                        await self._register_views(entity)
+                    await self._send_message_to_entity(entity, is_channel=is_channel)
+        except Exception as e:
+            self.emit_log(f"❌ {os.path.basename(self.session_file)} | Ошибка: {str(e)}")
     async def _handle_unsubscribe(self, bot_url):
         try:
             entity = await self.connection.client.get_entity(bot_url)
@@ -474,7 +494,6 @@ class SubscribeWindow(QWidget):
             self.main_window.config_changed.connect(self.task2.session_window.on_config_changed)
 def is_private_invite(link: str) -> bool:
     link = link.strip()
-
     return (
         link.startswith('+') or
         link.startswith('joinchat/') or

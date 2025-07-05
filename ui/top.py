@@ -30,7 +30,7 @@ class TopBar:
         top_layout.addWidget(self.proxy_btn)
         self.folder_btn = self._create_tool_button(get_themed_icon('folder', self.is_dark_theme), "Выбрать путь к папке с сессиями", self.main_window.choose_session_folder)
         top_layout.addWidget(self.folder_btn)
-        self.bot_token_folder_btn = self._create_tool_button(get_themed_icon('folder', self.is_dark_theme), "Выбрать путь к папке с токенами ботов", self.main_window.choose_bot_token_folder)
+        self.bot_token_folder_btn = self._create_tool_button(get_themed_icon('robot', self.is_dark_theme), "Выбрать путь к папке с токенами ботов", self.main_window.choose_bot_token_folder)
         top_layout.addWidget(self.bot_token_folder_btn)
         self.text_btn = self._create_tool_button(get_themed_icon('edit', self.is_dark_theme), "Создать текст", self.main_window.open_create_text_dialog)
         top_layout.addWidget(self.text_btn)
@@ -93,7 +93,7 @@ class TopBar:
             self.api_btn.setIcon(get_themed_icon('settings', dark))
             self.proxy_btn.setIcon(get_themed_icon('globe', dark))
             self.folder_btn.setIcon(get_themed_icon('folder', dark))
-            self.bot_token_folder_btn.setIcon(get_themed_icon('folder', dark))
+            self.bot_token_folder_btn.setIcon(get_themed_icon('robot', dark))
             if hasattr(self, 'text_btn'):
                 self.text_btn.setIcon(get_themed_icon('edit', dark))
             if hasattr(self, 'edit_txt_btn'):

@@ -48,6 +48,9 @@ class BotWorker(BaseThread):
         with QMutexLocker(self.mutex):
             user_set.add(user_id)
     def stop(self, *args):
+        # Очищаем множества пользователей для освобождения памяти
+        self.started_users.clear()
+        self.premium_users.clear()
         super().stop()
     async def process(self, *args, **kwargs):
         try:
@@ -285,10 +288,16 @@ class AutoReplyAiogramWorker(QObject):
             self.thread_manager.start_thread(thread)
         self.safe_emit(self.log_signal, f"Всего запущено ботов: {self.thread_manager.get_total_count()}")
     def on_thread_finished(self, token, username, *args):
+        # После завершения потока удаляем его из менеджера и очищаем память
+        self.thread_manager.remove_thread_by_token(token)
         if username == "unknown":
             self.safe_emit(self.log_signal, f"Бот с токеном {token[:10]}... завершил работу")
         else:
             self.safe_emit(self.log_signal, f"Бот {username} завершил работу")
+    def remove_thread_by_token(self, token):
+        # Удаляет поток по токену, если он есть
+        self.threads = [t for t in self.threads if not hasattr(t, 'token') or t.token != token]
+        self.clear_completed()
     def check_threads(self, *args):
         if not self.running_flag or self._is_stopping:
             return

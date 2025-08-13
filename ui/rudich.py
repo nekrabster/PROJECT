@@ -38,7 +38,7 @@ class UpdateCheckerThread(QThread):
     def run(self, *args, **kwargs):
         try:
             response = requests.get(
-                "https://update.smm-aviator.com/version/update.php",
+                "https://aviatortg.com/version/update.php",
                 timeout=5
             )
             if response.status_code == 200:
@@ -548,7 +548,7 @@ class UpdateCheckTask(QThread):
         super().__init__()
         self.window = window
     def run(self, *args, **kwargs):
-        UPDATE_CHECK_URL = "https://update.smm-aviator.com/version/update.php"
+        UPDATE_CHECK_URL = "https://aviatortg.com/version/update.php"
         CURRENT_VERSION = "2.4.0"
         try:
             response = requests.get(UPDATE_CHECK_URL)
@@ -580,7 +580,7 @@ class KeyValidationWorker(QThread):
         self.key = key
         self.device_id = device_id        
     def run(self, *args, **kwargs):
-        url = 'https://update.smm-aviator.com/check_key.php'
+        url = 'https://aviatortg.com/check_key.php'
         payload = {"key": self.key, "device_id": self.device_id}
         headers = {'Content-Type': 'application/json'}        
         try:

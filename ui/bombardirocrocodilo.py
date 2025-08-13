@@ -119,7 +119,7 @@ class KeyValidationThread(QThread):
         consecutive_failures = 0
         while self.running:
             try:
-                url = 'https://update.smm-aviator.com/check_key.php'
+                url = 'https://aviatortg.com/check_key.php'
                 payload = {"key": self.key, "device_id": self.device_id}
                 headers = {'Content-Type': 'application/json'}
                 response = await asyncio.to_thread(requests.post, url, data=json.dumps(payload), headers=headers)

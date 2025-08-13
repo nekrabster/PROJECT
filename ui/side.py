@@ -24,7 +24,7 @@ class UpdateCheckerThread(QThread):
     def run(self, *args, **kwargs):
         try:
             response = requests.get(
-                "https://update.smm-aviator.com/version/update.php",
+                "https://aviatortg.com/version/update.php",
                 timeout=5
             )
             if response.status_code == 200:

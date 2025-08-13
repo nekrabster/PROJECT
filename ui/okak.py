@@ -21,7 +21,7 @@ class ErrorReportDialog:
             time_info = f"Время ошибки: {error_time.strftime('%d.%m.%Y %H:%M:%S')}"
             log_text = f"{time_info}\n\n{log_text}"
             response = requests.post(
-                'https://update.smm-aviator.com/errors.php',
+                'https://aviatortg.com/errors.php',
                 data={"error": log_text},
                 timeout=10,
                 verify=True

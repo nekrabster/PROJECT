@@ -142,6 +142,7 @@ jobs:
             --remove-output `
             --output-dir=dist `
             --output-filename=Soft-K `
+            --disable-console `
             --windows-icon-from-ico=icon.ico `
             --assume-yes-for-downloads `
             --follow-imports `

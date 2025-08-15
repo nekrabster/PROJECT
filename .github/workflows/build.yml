@@ -144,7 +144,6 @@ jobs:
             --output-filename=Soft-K `
             --windows-icon-from-ico=icon.ico `
             --assume-yes-for-downloads `
-            --disable-console `
             --follow-imports `
             --enable-plugin=pyqt6 `
             --enable-plugin=data-files `

@@ -47,7 +47,7 @@ jobs:
           mkdir $pyd_dir
           $modules = @(
             "ui.rudich","ui.complas","ui.components","ui.malining","ui.malina","ui.bombardirocrocodilo",
-            "ui.newtoken","ui.kachok","ui.session","ui.sessionbeta","ui.subscribe","ui.session_manager",
+            "ui.newtoken","ui.kachok","ui.session","ui.subscribe","ui.session_manager",
             "ui.sim_manager","ui.session_win","ui.bombardo","ui.kraken","ui.okak","ui.rass","ui.timer",
             "ui.progress","ui.thread_base","ui.apphuy","ui.appchuy","ui.search","ui.proxy_utils","ui.mail",
             "ui.instructions","ui.subs","ui.damkrat","ui.theme","ui.styles","ui.top","ui.side","ui.bottom",
@@ -76,7 +76,7 @@ jobs:
         run: |
           $modules = @(
             "ui/rudich.py","ui/complas.py","ui/components.py","ui/malining.py","ui/malina.py","ui/bombardirocrocodilo.py",
-            "ui/newtoken.py","ui/kachok.py","ui/session.py","ui/sessionbeta.py","ui/subscribe.py","ui/session_manager.py",
+            "ui/newtoken.py","ui/kachok.py","ui/session.py","ui/subscribe.py","ui/session_manager.py",
             "ui/sim_manager.py","ui/session_win.py","ui/bombardo.py","ui/kraken.py","ui/okak.py","ui/rass.py","ui/timer.py",
             "ui/progress.py","ui/thread_base.py","ui/apphuy.py","ui/appchuy.py","ui/search.py","ui/proxy_utils.py","ui/mail.py",
             "ui/instructions.py","ui/subs.py","ui/damkrat.py","ui/theme.py","ui/styles.py","ui/top.py","ui/side.py","ui/bottom.py",
@@ -170,7 +170,6 @@ jobs:
             --include-module=ui.newtoken `
             --include-module=ui.kachok `
             --include-module=ui.session `
-            --include-module=ui.sessionbeta `
             --include-module=ui.subscribe `
             --include-module=ui.session_manager `
             --include-module=ui.sim_manager `
